@@ -4,6 +4,7 @@ import { ProxyConfig } from "../../types/config";
 import ThinkingBudget from "./ThinkingBudget";
 import GlobalSystemPrompt from "./GlobalSystemPrompt";
 import ImageThinkingMode from "./ImageThinkingMode";
+import ClaudeThinkingMapping from "./ClaudeThinkingMapping";
 
 interface AdvancedThinkingProps {
     config: ProxyConfig;
@@ -50,7 +51,15 @@ export default function AdvancedThinking({
                         />
                     </div>
 
-                    {/* 3. 全局系统提示词 (Global System Prompt) */}
+                    {/* 3. Claude Thinking Mapping */}
+                    <div className="pt-4">
+                        <ClaudeThinkingMapping
+                            value={config.claude_thinking_mapping !== false}
+                            onChange={(newValue) => onChange({ ...config, claude_thinking_mapping: newValue })}
+                        />
+                    </div>
+
+                    {/* 4. 全局系统提示词 (Global System Prompt) */}
                     <div className="pt-4">
                         <GlobalSystemPrompt
                             config={config.global_system_prompt || { enabled: false, content: '' }}

@@ -270,10 +270,18 @@ pub async fn ensure_admin_server(
 
     // [NEW] 初始化全局 Thinking Budget 配置
     crate::proxy::update_thinking_budget_config(config.thinking_budget.clone());
+    // [NEW] 初始化 Claude Thinking Mapping 配置
+    crate::proxy::update_claude_thinking_mapping_enabled(config.claude_thinking_mapping);
     // [NEW] 初始化全局系统提示词配置
     crate::proxy::update_global_system_prompt_config(config.global_system_prompt.clone());
     // [NEW] 初始化全局图像思维模式配置
     crate::proxy::update_image_thinking_mode(config.image_thinking_mode.clone());
+    // [NEW] 初始化上游端点代理配置
+    crate::proxy::update_endpoint_proxy_config(config.endpoint_proxy.clone());
+    // [NEW] 初始化流式行为配置
+    crate::proxy::update_stream_handling_config(config.stream_handling.clone());
+    // [NEW] 初始化标点规范化配置
+    crate::proxy::update_punctuation_config(config.punctuation.clone());
 
     Ok(())
 }

@@ -26,6 +26,12 @@ pub fn normalize_proxy_url(url: &str) -> String {
 // ============================================================================
 static GLOBAL_THINKING_BUDGET_CONFIG: OnceLock<RwLock<ThinkingBudgetConfig>> = OnceLock::new();
 
+// ============================================================================
+// Claude Thinking Mapping 配置存储
+// 控制是否将 claude-*-thinking 映射为上游非思考模型
+// ============================================================================
+static GLOBAL_CLAUDE_THINKING_MAPPING: OnceLock<RwLock<bool>> = OnceLock::new();
+
 /// 获取当前 Thinking Budget 配置
 pub fn get_thinking_budget_config() -> ThinkingBudgetConfig {
     GLOBAL_THINKING_BUDGET_CONFIG
@@ -53,6 +59,34 @@ pub fn update_thinking_budget_config(config: ThinkingBudgetConfig) {
             "[Thinking-Budget] Global config initialized: mode={:?}, custom_value={}",
             config.mode,
             config.custom_value
+        );
+    }
+}
+
+/// 获取 Claude Thinking Mapping 是否启用
+pub fn get_claude_thinking_mapping_enabled() -> bool {
+    GLOBAL_CLAUDE_THINKING_MAPPING
+        .get()
+        .and_then(|lock| lock.read().ok())
+        .map(|val| *val)
+        .unwrap_or(true)
+}
+
+/// 更新 Claude Thinking Mapping 配置
+pub fn update_claude_thinking_mapping_enabled(enabled: bool) {
+    if let Some(lock) = GLOBAL_CLAUDE_THINKING_MAPPING.get() {
+        if let Ok(mut cfg) = lock.write() {
+            *cfg = enabled;
+            tracing::info!(
+                "[Claude-Thinking-Mapping] Global config updated: enabled={}",
+                enabled
+            );
+        }
+    } else {
+        let _ = GLOBAL_CLAUDE_THINKING_MAPPING.set(RwLock::new(enabled));
+        tracing::info!(
+            "[Claude-Thinking-Mapping] Global config initialized: enabled={}",
+            enabled
         );
     }
 }
@@ -119,6 +153,117 @@ pub fn update_image_thinking_mode(mode: Option<String>) {
     } else {
         let _ = GLOBAL_IMAGE_THINKING_MODE.set(RwLock::new(val.clone()));
         tracing::info!("[Image-Thinking] Global config initialized: {}", val);
+    }
+}
+
+// ============================================================================
+// 流式行为配置存储
+// ============================================================================
+static GLOBAL_STREAM_HANDLING_CONFIG: OnceLock<RwLock<StreamHandlingConfig>> = OnceLock::new();
+
+pub fn get_stream_handling_config() -> StreamHandlingConfig {
+    GLOBAL_STREAM_HANDLING_CONFIG
+        .get()
+        .and_then(|lock| lock.read().ok())
+        .map(|cfg| cfg.clone())
+        .unwrap_or_default()
+}
+
+pub fn update_stream_handling_config(config: StreamHandlingConfig) {
+    if let Some(lock) = GLOBAL_STREAM_HANDLING_CONFIG.get() {
+        if let Ok(mut cfg) = lock.write() {
+            *cfg = config.clone();
+            tracing::info!(
+                "[Stream-Handling] Global config updated: fake_non_stream={}, enable_fake_streaming={}",
+                config.fake_non_stream,
+                config.enable_fake_streaming
+            );
+        }
+    } else {
+        let _ = GLOBAL_STREAM_HANDLING_CONFIG.set(RwLock::new(config.clone()));
+        tracing::info!(
+            "[Stream-Handling] Global config initialized: fake_non_stream={}, enable_fake_streaming={}",
+            config.fake_non_stream,
+            config.enable_fake_streaming
+        );
+    }
+}
+
+// ============================================================================
+// 标点规范化配置存储
+// ============================================================================
+static GLOBAL_PUNCTUATION_CONFIG: OnceLock<RwLock<PunctuationConfig>> = OnceLock::new();
+
+// ============================================================================
+// 上游端点代理配置存储
+// ============================================================================
+static GLOBAL_ENDPOINT_PROXY_CONFIG: OnceLock<RwLock<EndpointProxyConfig>> = OnceLock::new();
+
+pub fn get_punctuation_config() -> PunctuationConfig {
+    GLOBAL_PUNCTUATION_CONFIG
+        .get()
+        .and_then(|lock| lock.read().ok())
+        .map(|cfg| cfg.clone())
+        .unwrap_or_default()
+}
+
+pub fn update_punctuation_config(config: PunctuationConfig) {
+    if let Some(lock) = GLOBAL_PUNCTUATION_CONFIG.get() {
+        if let Ok(mut cfg) = lock.write() {
+            *cfg = config.clone();
+            tracing::info!(
+                "[Punctuation] Global config updated: normalize={}, exclude_tags={}",
+                config.normalize,
+                config.exclude_tags
+            );
+        }
+    } else {
+        let _ = GLOBAL_PUNCTUATION_CONFIG.set(RwLock::new(config.clone()));
+        tracing::info!(
+            "[Punctuation] Global config initialized: normalize={}, exclude_tags={}",
+            config.normalize,
+            config.exclude_tags
+        );
+    }
+}
+
+/// 获取上游端点代理配置
+pub fn get_endpoint_proxy_config() -> EndpointProxyConfig {
+    GLOBAL_ENDPOINT_PROXY_CONFIG
+        .get()
+        .and_then(|lock| lock.read().ok())
+        .map(|cfg| cfg.clone())
+        .unwrap_or_default()
+}
+
+/// 更新上游端点代理配置
+pub fn update_endpoint_proxy_config(config: EndpointProxyConfig) {
+    if let Some(lock) = GLOBAL_ENDPOINT_PROXY_CONFIG.get() {
+        if let Ok(mut cfg) = lock.write() {
+            *cfg = config.clone();
+            tracing::info!(
+                "[Endpoint-Proxy] Global config updated: enabled={}, base_urls={} load_code_assist={}",
+                config.enabled,
+                config.base_urls.len(),
+                config
+                    .load_code_assist_url
+                    .as_ref()
+                    .map(|s| s.len())
+                    .unwrap_or(0)
+            );
+        }
+    } else {
+        let _ = GLOBAL_ENDPOINT_PROXY_CONFIG.set(RwLock::new(config.clone()));
+        tracing::info!(
+            "[Endpoint-Proxy] Global config initialized: enabled={}, base_urls={} load_code_assist={}",
+            config.enabled,
+            config.base_urls.len(),
+            config
+                .load_code_assist_url
+                .as_ref()
+                .map(|s| s.len())
+                .unwrap_or(0)
+        );
     }
 }
 
@@ -365,6 +510,14 @@ fn default_false() -> bool {
     false
 }
 
+fn default_punctuation_exclude_tags() -> String {
+    "code,pre,script,style".to_string()
+}
+
+fn default_auto_disable_consumption_percent() -> f64 {
+    20.0
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DebugLoggingConfig {
     #[serde(default)]
@@ -378,6 +531,68 @@ impl Default for DebugLoggingConfig {
         Self {
             enabled: false,
             output_dir: None,
+        }
+    }
+}
+
+/// 流式行为配置
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamHandlingConfig {
+    /// 是否启用假非流: 客户端非流式请求将以内流式方式上游请求后再聚合返回
+    #[serde(default = "default_true")]
+    pub fake_non_stream: bool,
+    /// 是否启用假流式模型前缀: 支持 `假流式/` 前缀模型
+    #[serde(default = "default_true")]
+    pub enable_fake_streaming: bool,
+}
+
+impl Default for StreamHandlingConfig {
+    fn default() -> Self {
+        Self {
+            fake_non_stream: true,
+            enable_fake_streaming: true,
+        }
+    }
+}
+
+/// 标点规范化配置
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PunctuationConfig {
+    #[serde(default = "default_false")]
+    pub normalize: bool,
+    #[serde(default = "default_punctuation_exclude_tags")]
+    pub exclude_tags: String,
+}
+
+impl Default for PunctuationConfig {
+    fn default() -> Self {
+        Self {
+            normalize: false,
+            exclude_tags: default_punctuation_exclude_tags(),
+        }
+    }
+}
+
+/// 上游端点代理配置
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EndpointProxyConfig {
+    /// 是否启用端点代理
+    #[serde(default)]
+    pub enabled: bool,
+    /// v1internal 基础 URL 列表 (支持多端点降级)
+    #[serde(default)]
+    pub base_urls: Vec<String>,
+    /// loadCodeAssist 端点 (可选)
+    #[serde(default)]
+    pub load_code_assist_url: Option<String>,
+}
+
+impl Default for EndpointProxyConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            base_urls: Vec::new(),
+            load_code_assist_url: None,
         }
     }
 }
@@ -489,6 +704,23 @@ pub struct ProxyConfig {
     #[serde(default = "default_request_timeout")]
     pub request_timeout: u64,
 
+    /// 流式行为配置（假非流/假流式前缀）
+    #[serde(default)]
+    pub stream_handling: StreamHandlingConfig,
+
+    /// 标点规范化配置
+    #[serde(default)]
+    pub punctuation: PunctuationConfig,
+
+    /// 是否启用按消耗比例自动禁用账号
+    #[serde(default = "default_true")]
+    pub auto_disable_on_consumption: bool,
+
+    /// 自动禁用阈值（消耗百分比，1-99）
+    /// 当任一模型剩余额度 <= 100 - 此值 时触发自动禁用
+    #[serde(default = "default_auto_disable_consumption_percent")]
+    pub auto_disable_consumption_percent: f64,
+
     /// 是否开启请求日志记录 (监控)
     #[serde(default)]
     pub enable_logging: bool,
@@ -547,9 +779,19 @@ pub struct ProxyConfig {
     #[serde(default)]
     pub image_thinking_mode: Option<String>,
 
+    /// Claude thinking 映射开关
+    /// - true: claude-*-thinking 映射为非思考模型，同时仍启用 thinking 参数
+    /// - false: 透传 thinking 模型名
+    #[serde(default = "default_true")]
+    pub claude_thinking_mapping: bool,
+
     /// 代理池配置
     #[serde(default)]
     pub proxy_pool: ProxyPoolConfig,
+
+    /// 上游端点代理配置
+    #[serde(default)]
+    pub endpoint_proxy: EndpointProxyConfig,
 }
 
 /// 上游代理配置
@@ -573,6 +815,10 @@ impl Default for ProxyConfig {
             auto_start: false,
             custom_mapping: std::collections::HashMap::new(),
             request_timeout: default_request_timeout(),
+            stream_handling: StreamHandlingConfig::default(),
+            punctuation: PunctuationConfig::default(),
+            auto_disable_on_consumption: true,
+            auto_disable_consumption_percent: default_auto_disable_consumption_percent(),
             enable_logging: true, // 默认开启，支持 token 统计功能
             debug_logging: DebugLoggingConfig::default(),
             upstream_proxy: UpstreamProxyConfig::default(),
@@ -587,6 +833,8 @@ impl Default for ProxyConfig {
             global_system_prompt: GlobalSystemPromptConfig::default(),
             proxy_pool: ProxyPoolConfig::default(),
             image_thinking_mode: None,
+            claude_thinking_mapping: true,
+            endpoint_proxy: EndpointProxyConfig::default(),
         }
     }
 }
@@ -703,14 +951,32 @@ mod tests {
     #[test]
     fn test_normalize_proxy_url() {
         // 测试已有协议
-        assert_eq!(normalize_proxy_url("http://127.0.0.1:7890"), "http://127.0.0.1:7890");
-        assert_eq!(normalize_proxy_url("https://proxy.com"), "https://proxy.com");
-        assert_eq!(normalize_proxy_url("socks5://127.0.0.1:1080"), "socks5://127.0.0.1:1080");
-        assert_eq!(normalize_proxy_url("socks5h://127.0.0.1:1080"), "socks5h://127.0.0.1:1080");
+        assert_eq!(
+            normalize_proxy_url("http://127.0.0.1:7890"),
+            "http://127.0.0.1:7890"
+        );
+        assert_eq!(
+            normalize_proxy_url("https://proxy.com"),
+            "https://proxy.com"
+        );
+        assert_eq!(
+            normalize_proxy_url("socks5://127.0.0.1:1080"),
+            "socks5://127.0.0.1:1080"
+        );
+        assert_eq!(
+            normalize_proxy_url("socks5h://127.0.0.1:1080"),
+            "socks5h://127.0.0.1:1080"
+        );
 
         // 测试缺少协议（默认补全 http://）
-        assert_eq!(normalize_proxy_url("127.0.0.1:7890"), "http://127.0.0.1:7890");
-        assert_eq!(normalize_proxy_url("localhost:1082"), "http://localhost:1082");
+        assert_eq!(
+            normalize_proxy_url("127.0.0.1:7890"),
+            "http://127.0.0.1:7890"
+        );
+        assert_eq!(
+            normalize_proxy_url("localhost:1082"),
+            "http://localhost:1082"
+        );
 
         // 测试边缘情况
         assert_eq!(normalize_proxy_url(""), "");

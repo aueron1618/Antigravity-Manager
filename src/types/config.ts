@@ -20,10 +20,16 @@ export interface ProxyConfig {
     scheduling?: StickySessionConfig;
     experimental?: ExperimentalConfig;
     user_agent_override?: string;
+    stream_handling?: StreamHandlingConfig;
     saved_user_agent?: string;
+    punctuation?: PunctuationConfig;
     thinking_budget?: ThinkingBudgetConfig;
     global_system_prompt?: GlobalSystemPromptConfig;
+    auto_disable_on_consumption?: boolean;
+    auto_disable_consumption_percent?: number;
     image_thinking_mode?: 'enabled' | 'disabled'; // [NEW] 图像思维模式开关
+    claude_thinking_mapping?: boolean; // [NEW] Claude thinking 映射开关
+    endpoint_proxy?: EndpointProxyConfig; // [NEW] 端点代理配置
     proxy_pool?: ProxyPoolConfig;
 }
 
@@ -57,6 +63,22 @@ export interface GlobalSystemPromptConfig {
 export interface DebugLoggingConfig {
     enabled: boolean;
     output_dir?: string;
+}
+
+export interface StreamHandlingConfig {
+    fake_non_stream: boolean;
+    enable_fake_streaming: boolean;
+}
+
+export interface PunctuationConfig {
+    normalize: boolean;
+    exclude_tags: string;
+}
+
+export interface EndpointProxyConfig {
+    enabled: boolean;
+    base_urls: string[];
+    load_code_assist_url?: string;
 }
 
 export type SchedulingMode = 'CacheFirst' | 'Balance' | 'PerformanceFirst';

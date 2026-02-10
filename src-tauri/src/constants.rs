@@ -1,5 +1,5 @@
-use std::sync::LazyLock;
 use regex::Regex;
+use std::sync::LazyLock;
 
 /// URL to fetch the latest Antigravity version
 const VERSION_URL: &str = "https://antigravity-auto-updater-974169037036.us-central1.run.app";
@@ -11,9 +11,8 @@ const CHANGELOG_URL: &str = "https://antigravity.google/changelog";
 const FALLBACK_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Pre-compiled regex for version parsing (X.Y.Z pattern)
-static VERSION_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\d+\.\d+\.\d+").expect("Invalid version regex")
-});
+static VERSION_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\d+\.\d+\.\d+").expect("Invalid version regex"));
 
 /// Parse version from response text using pre-compiled regex
 /// Matches semver pattern: X.Y.Z (e.g., "1.15.8")
@@ -57,14 +56,14 @@ fn try_fetch_version(url: &'static str, thread_name: &str) -> Option<String> {
 
             let response = client.get(url).send().ok()?;
             let text = response.text().ok()?;
-            
+
             // For changelog, restrict scan to first 5000 chars for efficiency
             let scan_text = if url == CHANGELOG_URL && text.len() > 5000 {
                 &text[..5000]
             } else {
                 &text
             };
-            
+
             parse_version(scan_text)
         });
 
@@ -129,4 +128,3 @@ mod tests {
         assert_eq!(parse_version(text), Some("1.15.8".to_string()));
     }
 }
-

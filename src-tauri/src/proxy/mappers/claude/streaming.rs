@@ -5,8 +5,8 @@ use super::models::*;
 use super::utils::to_claude_usage;
 use crate::proxy::mappers::estimation_calibrator::get_calibrator;
 // use crate::proxy::mappers::signature_store::store_thought_signature; // Deprecated
-use crate::proxy::SignatureCache;
 use crate::proxy::common::client_adapter::{ClientAdapter, SignatureBufferStrategy}; // [NEW]
+use crate::proxy::SignatureCache;
 use bytes::Bytes;
 use serde_json::{json, Value};
 
@@ -770,7 +770,10 @@ impl<'a> PartProcessor<'a> {
         }
 
         // [NEW] Apply Client Adapter Strategy
-        let use_fifo = self.state.client_adapter.as_ref()
+        let use_fifo = self
+            .state
+            .client_adapter
+            .as_ref()
             .map(|a| a.signature_buffer_strategy() == SignatureBufferStrategy::Fifo)
             .unwrap_or(false);
 
@@ -787,11 +790,11 @@ impl<'a> PartProcessor<'a> {
                 // However, our cache implementation currently keys by session_id.
                 // For FIFO, we might just rely on the fact that we are processing in order.
                 // But specifically for opencode, it might be calling tools in parallel or sequence.
-                
+
                 SignatureCache::global().cache_session_signature(
-                    session_id, 
-                    sig.clone(), 
-                    self.state.message_count
+                    session_id,
+                    sig.clone(),
+                    self.state.message_count,
                 );
                 tracing::debug!(
                     "[Claude-SSE] Cached signature to session {} (length: {}) [FIFO: {}]",
@@ -808,8 +811,8 @@ impl<'a> PartProcessor<'a> {
         }
 
         // 暂存签名 (for local block handling)
-        // If FIFO, we strictly follow the sequence. The default logic is effectively LIFO for a single turn 
-        // (store latest, consume at end). 
+        // If FIFO, we strictly follow the sequence. The default logic is effectively LIFO for a single turn
+        // (store latest, consume at end).
         // For opencode, we just want to ensure we capture IT.
         self.state.store_signature(signature);
 
@@ -996,9 +999,9 @@ impl<'a> PartProcessor<'a> {
             // 3. [NEW v3.3.17] Cache to session-based storage
             if let Some(session_id) = &self.state.session_id {
                 SignatureCache::global().cache_session_signature(
-                    session_id, 
+                    session_id,
                     sig.clone(),
-                    self.state.message_count
+                    self.state.message_count,
                 );
             }
 

@@ -38,16 +38,16 @@ pub fn resolve_request_config(
                     tracing::info!(
                         "[Common-Utils] Found imageConfig in body, merging with inferred config from suffix/params"
                     );
-                    
+
                     if let Some(inferred_obj) = inferred_config.as_object_mut() {
                         if let Some(body_obj) = body_image_config.as_object() {
                             // Merge body_obj into inferred_obj
                             for (key, value) in body_obj {
                                 // CRITICAL: Only allow body to override if inferred doesn't already have a high-priority value
                                 // Specifically, if we inferred imageSize from -4k, don't let body downgrade it if it's missing or standard.
-                                let is_size_downgrade = key == "imageSize" && 
-                                    (value.as_str() == Some("1K") || value.is_null()) &&
-                                    inferred_obj.contains_key("imageSize");
+                                let is_size_downgrade = key == "imageSize"
+                                    && (value.as_str() == Some("1K") || value.is_null())
+                                    && inferred_obj.contains_key("imageSize");
 
                                 if !is_size_downgrade {
                                     inferred_obj.insert(key.clone(), value.clone());
@@ -63,7 +63,8 @@ pub fn resolve_request_config(
 
         tracing::info!(
             "[Common-Utils] Final Image Config for {}: {:?}",
-            parsed_base_model, inferred_config
+            parsed_base_model,
+            inferred_config
         );
 
         return RequestConfig {
@@ -503,8 +504,14 @@ mod tests {
 
     #[test]
     fn test_online_suffix_force_grounding() {
-        let config =
-            resolve_request_config("gemini-3-flash-online", "gemini-3-flash", &None, None, None, None);
+        let config = resolve_request_config(
+            "gemini-3-flash-online",
+            "gemini-3-flash",
+            &None,
+            None,
+            None,
+            None,
+        );
         assert_eq!(config.request_type, "web_search");
         assert!(config.inject_google_search);
         assert_eq!(config.final_model, "gemini-2.5-flash");
@@ -512,7 +519,8 @@ mod tests {
 
     #[test]
     fn test_default_no_grounding() {
-        let config = resolve_request_config("claude-sonnet", "gemini-3-flash", &None, None, None, None);
+        let config =
+            resolve_request_config("claude-sonnet", "gemini-3-flash", &None, None, None, None);
         assert_eq!(config.request_type, "agent");
         assert!(!config.inject_google_search);
     }
@@ -653,8 +661,14 @@ mod tests {
             Some(&body),
         );
         let image_config = config.image_config.unwrap();
-        assert_eq!(image_config["imageSize"], "4K", "Should shield inferred 4K from body downgrade");
-        assert_eq!(image_config["aspectRatio"], "1:1", "Should take aspectRatio from body");
+        assert_eq!(
+            image_config["imageSize"], "4K",
+            "Should shield inferred 4K from body downgrade"
+        );
+        assert_eq!(
+            image_config["aspectRatio"], "1:1",
+            "Should take aspectRatio from body"
+        );
 
         // Case 2: Suffix contains -16-9, Body contains aspectRatio: 1:1
         // Expected: Body overrides suffix for aspectRatio (since it's not a 'downgrade' shield case yet, only size is shielded)
@@ -674,6 +688,9 @@ mod tests {
             Some(&body_2),
         );
         let image_config_2 = config_2.image_config.unwrap();
-        assert_eq!(image_config_2["aspectRatio"], "1:1", "Body should be allowed to override aspectRatio");
+        assert_eq!(
+            image_config_2["aspectRatio"], "1:1",
+            "Body should be allowed to override aspectRatio"
+        );
     }
 }

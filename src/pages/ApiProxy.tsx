@@ -24,7 +24,15 @@ import {
     Edit2,
     Save
 } from 'lucide-react';
-import { AppConfig, ProxyConfig, StickySessionConfig, ExperimentalConfig } from '../types/config';
+import {
+    AppConfig,
+    ProxyConfig,
+    StickySessionConfig,
+    ExperimentalConfig,
+    StreamHandlingConfig,
+    PunctuationConfig,
+    EndpointProxyConfig,
+} from '../types/config';
 import HelpTooltip from '../components/common/HelpTooltip';
 import ModalDialog from '../components/common/ModalDialog';
 import { showToast } from '../components/common/ToastContainer';
@@ -655,6 +663,72 @@ export default function ApiProxy() {
                 ...updates
             }
         };
+        saveConfig(newConfig);
+    };
+
+    const updateStreamHandlingConfig = (updates: Partial<StreamHandlingConfig>) => {
+        if (!appConfig) return;
+
+        const currentStreamHandling: StreamHandlingConfig = appConfig.proxy.stream_handling || {
+            fake_non_stream: true,
+            enable_fake_streaming: true,
+        };
+
+        const newConfig = {
+            ...appConfig,
+            proxy: {
+                ...appConfig.proxy,
+                stream_handling: {
+                    ...currentStreamHandling,
+                    ...updates,
+                },
+            },
+        };
+        saveConfig(newConfig);
+    };
+
+    const updatePunctuationConfig = (updates: Partial<PunctuationConfig>) => {
+        if (!appConfig) return;
+
+        const currentPunctuation: PunctuationConfig = appConfig.proxy.punctuation || {
+            normalize: false,
+            exclude_tags: 'code,pre,script,style',
+        };
+
+        const newConfig = {
+            ...appConfig,
+            proxy: {
+                ...appConfig.proxy,
+                punctuation: {
+                    ...currentPunctuation,
+                    ...updates,
+                },
+            },
+        };
+
+        saveConfig(newConfig);
+    };
+
+    const updateEndpointProxyConfig = (updates: Partial<EndpointProxyConfig>) => {
+        if (!appConfig) return;
+
+        const currentConfig: EndpointProxyConfig = appConfig.proxy.endpoint_proxy || {
+            enabled: false,
+            base_urls: [],
+            load_code_assist_url: undefined,
+        };
+
+        const newConfig = {
+            ...appConfig,
+            proxy: {
+                ...appConfig.proxy,
+                endpoint_proxy: {
+                    ...currentConfig,
+                    ...updates,
+                },
+            },
+        };
+
         saveConfig(newConfig);
     };
 
@@ -1896,6 +1970,191 @@ print(response.text)`;
                                         <div className="space-y-1">
                                             <div className="flex items-center gap-2">
                                                 <span className="text-sm font-bold text-gray-900 dark:text-base-content">
+                                                    {t('proxy.config.stream_handling.fake_non_stream.title', { defaultValue: 'Fake Non-Stream' })}
+                                                </span>
+                                                <HelpTooltip text={t('proxy.config.stream_handling.fake_non_stream.tooltip', { defaultValue: 'When enabled, non-stream requests are internally upgraded to streaming, then aggregated back to JSON. Helps avoid stricter non-stream upstream limits.' })} />
+                                            </div>
+                                            <p className="text-[10px] text-gray-500 dark:text-gray-400 max-w-lg">
+                                                {t('proxy.config.stream_handling.fake_non_stream.desc', { defaultValue: 'Recommended ON. Turning OFF sends true non-stream upstream requests.' })}
+                                            </p>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={appConfig.proxy.stream_handling?.fake_non_stream !== false}
+                                                onChange={(e) => updateStreamHandlingConfig({ fake_non_stream: e.target.checked })}
+                                            />
+                                            <div className="w-11 h-6 bg-gray-200 dark:bg-base-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500 shadow-inner"></div>
+                                        </label>
+                                    </div>
+
+                                    <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-base-200 rounded-xl border border-gray-100 dark:border-base-300">
+                                        <div className="space-y-1">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm font-bold text-gray-900 dark:text-base-content">
+                                                    {t('proxy.config.stream_handling.enable_fake_streaming.title', { defaultValue: 'Enable Fake Stream Prefix' })}
+                                                </span>
+                                                <HelpTooltip text={t('proxy.config.stream_handling.enable_fake_streaming.tooltip', { defaultValue: 'Expose and recognize the `假流式/` model prefix. Prefixed stream requests are served by non-stream upstream responses and replayed as SSE.' })} />
+                                            </div>
+                                            <p className="text-[10px] text-gray-500 dark:text-gray-400 max-w-lg">
+                                                {t('proxy.config.stream_handling.enable_fake_streaming.desc', { defaultValue: 'When enabled, `/v1/models` includes prefixed variants for non-image models.' })}
+                                            </p>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={appConfig.proxy.stream_handling?.enable_fake_streaming !== false}
+                                                onChange={(e) => updateStreamHandlingConfig({ enable_fake_streaming: e.target.checked })}
+                                            />
+                                            <div className="w-11 h-6 bg-gray-200 dark:bg-base-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500 shadow-inner"></div>
+                                        </label>
+                                    </div>
+
+                                    <div className="p-4 bg-gray-50 dark:bg-base-200 rounded-xl border border-gray-100 dark:border-base-300 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <div className="space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-bold text-gray-900 dark:text-base-content">
+                                                        {t('proxy.config.punctuation.normalize.title', { defaultValue: 'Chinese Punctuation Normalize' })}
+                                                    </span>
+                                                    <HelpTooltip text={t('proxy.config.punctuation.normalize.tooltip', { defaultValue: 'Normalize punctuation in non-stream JSON responses, such as Chinese comma and smart quotes.' })} />
+                                                </div>
+                                                <p className="text-[10px] text-gray-500 dark:text-gray-400 max-w-lg">
+                                                    {t('proxy.config.punctuation.normalize.desc', { defaultValue: 'Useful when clients rely on non-stream mode and want cleaner Chinese punctuation output.' })}
+                                                </p>
+                                            </div>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    className="sr-only peer"
+                                                    checked={!!appConfig.proxy.punctuation?.normalize}
+                                                    onChange={(e) => updatePunctuationConfig({ normalize: e.target.checked })}
+                                                />
+                                                <div className="w-11 h-6 bg-gray-200 dark:bg-base-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-500 shadow-inner"></div>
+                                            </label>
+                                        </div>
+
+                                        <div className="space-y-1">
+                                            <label className="text-[11px] font-medium text-gray-500 dark:text-gray-400 inline-flex items-center gap-2">
+                                                {t('proxy.config.punctuation.exclude_tags.title', { defaultValue: 'Exclude Tags' })}
+                                                <HelpTooltip text={t('proxy.config.punctuation.exclude_tags.tooltip', { defaultValue: 'Comma-separated HTML tags to skip punctuation normalization inside, for example: code,pre,script,style' })} />
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={appConfig.proxy.punctuation?.exclude_tags ?? 'code,pre,script,style'}
+                                                onChange={(e) => updatePunctuationConfig({ exclude_tags: e.target.value })}
+                                                disabled={!appConfig.proxy.punctuation?.normalize}
+                                                className="input input-sm input-bordered w-full font-mono text-xs disabled:opacity-50"
+                                                placeholder="code,pre,script,style"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="p-4 bg-gray-50 dark:bg-base-200 rounded-xl border border-gray-100 dark:border-base-300 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <div className="space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-bold text-gray-900 dark:text-base-content">
+                                                        {t('proxy.config.auto_disable_on_consumption.title', { defaultValue: 'Auto Disable On Consumption' })}
+                                                    </span>
+                                                    <HelpTooltip text={t('proxy.config.auto_disable_on_consumption.tooltip', { defaultValue: 'Auto-disable proxy account when any model reaches the configured consumption threshold.' })} />
+                                                </div>
+                                                <p className="text-[10px] text-gray-500 dark:text-gray-400 max-w-lg">
+                                                    {t('proxy.config.auto_disable_on_consumption.desc', { defaultValue: 'Equivalent to token auto-disable in upstream project. Disabled accounts can be re-enabled manually in Accounts page.' })}
+                                                </p>
+                                            </div>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    className="sr-only peer"
+                                                    checked={appConfig.proxy.auto_disable_on_consumption !== false}
+                                                    onChange={(e) => updateProxyConfig({ auto_disable_on_consumption: e.target.checked })}
+                                                />
+                                                <div className="w-11 h-6 bg-gray-200 dark:bg-base-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500 shadow-inner"></div>
+                                            </label>
+                                        </div>
+
+                                        <div className="space-y-1">
+                                            <label className="text-[11px] font-medium text-gray-500 dark:text-gray-400 inline-flex items-center gap-2">
+                                                {t('proxy.config.auto_disable_on_consumption.percent_label', { defaultValue: 'Consumption Threshold (%)' })}
+                                                <HelpTooltip text={t('proxy.config.auto_disable_on_consumption.percent_tooltip', { defaultValue: 'Range 1-99. Example: 20 means disable when consumed >= 20% (remaining <= 80%).' })} />
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min={1}
+                                                max={99}
+                                                value={appConfig.proxy.auto_disable_consumption_percent ?? 20}
+                                                onChange={(e) => updateProxyConfig({ auto_disable_consumption_percent: Math.max(1, Math.min(99, Number.parseFloat(e.target.value) || 20)) })}
+                                                disabled={appConfig.proxy.auto_disable_on_consumption === false}
+                                                className="input input-sm input-bordered w-40 font-mono text-xs disabled:opacity-50"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="p-4 bg-gray-50 dark:bg-base-200 rounded-xl border border-gray-100 dark:border-base-300 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <div className="space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-bold text-gray-900 dark:text-base-content">
+                                                        {t('proxy.config.endpoint_proxy.title', { defaultValue: 'Upstream Endpoint Proxy' })}
+                                                    </span>
+                                                    <HelpTooltip text={t('proxy.config.endpoint_proxy.tooltip', { defaultValue: 'Override v1internal base endpoints (sandbox/daily/prod) with custom URLs. Supports fallback order.' })} />
+                                                </div>
+                                                <p className="text-[10px] text-gray-500 dark:text-gray-400 max-w-lg">
+                                                    {t('proxy.config.endpoint_proxy.desc', { defaultValue: 'Useful for region-specific endpoints or self-hosted gateways. Leave empty to use built-in defaults.' })}
+                                                </p>
+                                            </div>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    className="sr-only peer"
+                                                    checked={appConfig.proxy.endpoint_proxy?.enabled === true}
+                                                    onChange={(e) => updateEndpointProxyConfig({ enabled: e.target.checked })}
+                                                />
+                                                <div className="w-11 h-6 bg-gray-200 dark:bg-base-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500 shadow-inner"></div>
+                                            </label>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[11px] font-medium text-gray-500 dark:text-gray-400 inline-flex items-center gap-2">
+                                                {t('proxy.config.endpoint_proxy.base_urls', { defaultValue: 'v1internal Base URLs (one per line)' })}
+                                            </label>
+                                            <textarea
+                                                value={(appConfig.proxy.endpoint_proxy?.base_urls || []).join('\n')}
+                                                onChange={(e) => updateEndpointProxyConfig({
+                                                    base_urls: e.target.value
+                                                        .split('\n')
+                                                        .map((line) => line.trim())
+                                                        .filter((line) => line.length > 0),
+                                                })}
+                                                disabled={!appConfig.proxy.endpoint_proxy?.enabled}
+                                                rows={3}
+                                                className="textarea textarea-bordered w-full font-mono text-xs disabled:opacity-50"
+                                                placeholder="https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal\nhttps://daily-cloudcode-pa.googleapis.com/v1internal"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[11px] font-medium text-gray-500 dark:text-gray-400 inline-flex items-center gap-2">
+                                                {t('proxy.config.endpoint_proxy.load_code_assist', { defaultValue: 'loadCodeAssist URL (optional)' })}
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={appConfig.proxy.endpoint_proxy?.load_code_assist_url || ''}
+                                                onChange={(e) => updateEndpointProxyConfig({ load_code_assist_url: e.target.value })}
+                                                disabled={!appConfig.proxy.endpoint_proxy?.enabled}
+                                                className="input input-sm input-bordered w-full font-mono text-xs disabled:opacity-50"
+                                                placeholder="https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:loadCodeAssist"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-base-200 rounded-xl border border-gray-100 dark:border-base-300">
+                                        <div className="space-y-1">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm font-bold text-gray-900 dark:text-base-content">
                                                     {t('proxy.config.experimental.enable_usage_scaling')}
                                                 </span>
                                                 <HelpTooltip text={t('proxy.config.experimental.enable_usage_scaling_tooltip')} />
@@ -2292,8 +2551,8 @@ print(response.text)`;
                                                 <ArrowRight size={14} /> {t('proxy.router.custom_mappings')}
                                             </h3>
                                             <p className="text-[9px] text-gray-500 dark:text-gray-400 leading-relaxed">
-                                                {t('proxy.router.custom_mapping_tip')}
-                                                <span className="text-amber-600 dark:text-amber-400">{t('proxy.router.custom_mapping_warning')}</span>
+                                                💡 支持手动输入任意模型 ID,可体验未发布模型(如 <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-blue-600 dark:text-blue-400">claude-opus-4-6</code>)。
+                                                <span className="text-amber-600 dark:text-amber-400">注意:并非所有账号都支持未发布模型</span>
                                             </p>
                                         </div>
                                     </div>

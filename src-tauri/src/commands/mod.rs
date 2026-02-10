@@ -372,10 +372,20 @@ pub async fn save_config(
         instance.axum_server.update_user_agent(&config.proxy).await;
         // 更新 Thinking Budget 配置
         crate::proxy::update_thinking_budget_config(config.proxy.thinking_budget.clone());
+        // 更新 Claude Thinking Mapping 配置
+        crate::proxy::update_claude_thinking_mapping_enabled(
+            config.proxy.claude_thinking_mapping,
+        );
         // [NEW] 更新全局系统提示词配置
         crate::proxy::update_global_system_prompt_config(config.proxy.global_system_prompt.clone());
         // [NEW] 更新全局图像思维模式配置
         crate::proxy::update_image_thinking_mode(config.proxy.image_thinking_mode.clone());
+        // [NEW] 更新上游端点代理配置
+        crate::proxy::update_endpoint_proxy_config(config.proxy.endpoint_proxy.clone());
+        // [NEW] 更新流式行为配置
+        crate::proxy::update_stream_handling_config(config.proxy.stream_handling.clone());
+        // [NEW] 更新标点规范化配置
+        crate::proxy::update_punctuation_config(config.proxy.punctuation.clone());
         // 更新代理池配置
         instance
             .axum_server
@@ -741,21 +751,6 @@ pub async fn should_check_updates() -> Result<bool, String> {
 pub async fn update_last_check_time() -> Result<(), String> {
     crate::modules::update_checker::update_last_check_time()
 }
-
-
-/// 检测是否通过 Homebrew Cask 安装
-#[tauri::command]
-pub async fn check_homebrew_installation() -> Result<bool, String> {
-    Ok(crate::modules::update_checker::is_homebrew_installed())
-}
-
-/// 通过 Homebrew Cask 升级应用
-#[tauri::command]
-pub async fn brew_upgrade_cask() -> Result<String, String> {
-    modules::logger::log_info("收到前端触发的 Homebrew 升级请求");
-    crate::modules::update_checker::brew_upgrade_cask().await
-}
-
 
 /// 获取更新设置
 #[tauri::command]

@@ -76,9 +76,11 @@ pub async fn handle_generate(
         )
         .await;
     }
+    let stream_handling = crate::proxy::config::get_stream_handling_config();
+
     let client_wants_stream = method == "streamGenerateContent";
     // [AUTO-CONVERSION] 强制内部流式化
-    let force_stream_internally = !client_wants_stream;
+    let force_stream_internally = !client_wants_stream && stream_handling.fake_non_stream;
     let is_stream = client_wants_stream || force_stream_internally;
 
     if force_stream_internally {

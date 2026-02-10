@@ -1,11 +1,14 @@
-use serde::{Deserialize, Serialize};
-use std::time::{SystemTime, UNIX_EPOCH};
 use crate::modules::logger;
 use chrono::Utc;
+use serde::{Deserialize, Serialize};
+use std::time::{SystemTime, UNIX_EPOCH};
 
-const GITHUB_API_URL: &str = "https://api.github.com/repos/lbjlaq/Antigravity-Manager/releases/latest";
-const GITHUB_RAW_URL: &str = "https://raw.githubusercontent.com/lbjlaq/Antigravity-Manager/main/package.json";
-const JSDELIVR_URL: &str = "https://cdn.jsdelivr.net/gh/lbjlaq/Antigravity-Manager@main/package.json";
+const GITHUB_API_URL: &str =
+    "https://api.github.com/repos/lbjlaq/Antigravity-Manager/releases/latest";
+const GITHUB_RAW_URL: &str =
+    "https://raw.githubusercontent.com/lbjlaq/Antigravity-Manager/main/package.json";
+const JSDELIVR_URL: &str =
+    "https://cdn.jsdelivr.net/gh/lbjlaq/Antigravity-Manager@main/package.json";
 const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const DEFAULT_CHECK_INTERVAL_HOURS: u64 = 24;
 
@@ -57,7 +60,10 @@ pub async fn check_for_updates() -> Result<UpdateInfo, String> {
     match check_github_api().await {
         Ok(info) => return Ok(info),
         Err(e) => {
-            logger::log_warn(&format!("GitHub API check failed: {}. Trying fallbacks...", e));
+            logger::log_warn(&format!(
+                "GitHub API check failed: {}. Trying fallbacks...",
+                e
+            ));
         }
     }
 
@@ -65,7 +71,10 @@ pub async fn check_for_updates() -> Result<UpdateInfo, String> {
     match check_static_url(GITHUB_RAW_URL, "GitHub Raw").await {
         Ok(info) => return Ok(info),
         Err(e) => {
-            logger::log_warn(&format!("GitHub Raw check failed: {}. Trying next fallback...", e));
+            logger::log_warn(&format!(
+                "GitHub Raw check failed: {}. Trying next fallback...",
+                e
+            ));
         }
     }
 
@@ -87,19 +96,27 @@ async fn create_client() -> Result<reqwest::Client, String> {
     // Load config to check for upstream proxy
     if let Ok(config) = crate::modules::config::load_app_config() {
         if config.proxy.upstream_proxy.enabled && !config.proxy.upstream_proxy.url.is_empty() {
-            logger::log_info(&format!("Update checker using upstream proxy: {}", config.proxy.upstream_proxy.url));
+            logger::log_info(&format!(
+                "Update checker using upstream proxy: {}",
+                config.proxy.upstream_proxy.url
+            ));
             match reqwest::Proxy::all(&config.proxy.upstream_proxy.url) {
                 Ok(proxy) => {
                     builder = builder.proxy(proxy);
-                },
+                }
                 Err(e) => {
-                    logger::log_warn(&format!("Failed to parse proxy URL '{}': {}", config.proxy.upstream_proxy.url, e));
+                    logger::log_warn(&format!(
+                        "Failed to parse proxy URL '{}': {}",
+                        config.proxy.upstream_proxy.url, e
+                    ));
                 }
             }
         }
     }
 
-    builder.build().map_err(|e| format!("Failed to create HTTP client: {}", e))
+    builder
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))
 }
 
 async fn check_github_api() -> Result<UpdateInfo, String> {
@@ -127,9 +144,15 @@ async fn check_github_api() -> Result<UpdateInfo, String> {
     let has_update = compare_versions(&latest_version, &current_version);
 
     if has_update {
-        logger::log_info(&format!("New version found (API): {} (Current: {})", latest_version, current_version));
+        logger::log_info(&format!(
+            "New version found (API): {} (Current: {})",
+            latest_version, current_version
+        ));
     } else {
-        logger::log_info(&format!("Up to date (API): {} (Matches {})", current_version, latest_version));
+        logger::log_info(&format!(
+            "Up to date (API): {} (Matches {})",
+            current_version, latest_version
+        ));
     }
 
     Ok(UpdateInfo {
@@ -160,7 +183,11 @@ async fn check_static_url(url: &str, source_name: &str) -> Result<UpdateInfo, St
         .map_err(|e| format!("Request failed: {}", e))?;
 
     if !response.status().is_success() {
-        return Err(format!("{} returned status: {}", source_name, response.status()));
+        return Err(format!(
+            "{} returned status: {}",
+            source_name,
+            response.status()
+        ));
     }
 
     let package_json: PackageJson = response
@@ -173,14 +200,23 @@ async fn check_static_url(url: &str, source_name: &str) -> Result<UpdateInfo, St
     let has_update = compare_versions(&latest_version, &current_version);
 
     if has_update {
-        logger::log_info(&format!("New version found ({}): {} (Current: {})", source_name, latest_version, current_version));
+        logger::log_info(&format!(
+            "New version found ({}): {} (Current: {})",
+            source_name, latest_version, current_version
+        ));
     } else {
-        logger::log_info(&format!("Up to date ({}): {} (Matches {})", source_name, current_version, latest_version));
+        logger::log_info(&format!(
+            "Up to date ({}): {} (Matches {})",
+            source_name, current_version, latest_version
+        ));
     }
 
     // fallback sources generally don't provide release notes or download specific URL, construct generic
     let download_url = "https://github.com/lbjlaq/Antigravity-Manager/releases/latest".to_string();
-    let release_notes = format!("New version detected via {}. Please check release page for details.", source_name);
+    let release_notes = format!(
+        "New version detected via {}. Please check release page for details.",
+        source_name
+    );
 
     Ok(UpdateInfo {
         current_version,
@@ -195,11 +231,8 @@ async fn check_static_url(url: &str, source_name: &str) -> Result<UpdateInfo, St
 
 /// Compare two semantic versions (e.g., "3.3.30" vs "3.3.29")
 fn compare_versions(latest: &str, current: &str) -> bool {
-    let parse_version = |v: &str| -> Vec<u32> {
-        v.split('.')
-            .filter_map(|s| s.parse::<u32>().ok())
-            .collect()
-    };
+    let parse_version =
+        |v: &str| -> Vec<u32> { v.split('.').filter_map(|s| s.parse::<u32>().ok()).collect() };
 
     let latest_parts = parse_version(latest);
     let current_parts = parse_version(current);
@@ -251,8 +284,7 @@ pub fn load_update_settings() -> Result<UpdateSettings, String> {
     let content = std::fs::read_to_string(&settings_path)
         .map_err(|e| format!("Failed to read settings file: {}", e))?;
 
-    serde_json::from_str(&content)
-        .map_err(|e| format!("Failed to parse settings: {}", e))
+    serde_json::from_str(&content).map_err(|e| format!("Failed to parse settings: {}", e))
 }
 
 /// Save update settings to config file
@@ -276,82 +308,6 @@ pub fn update_last_check_time() -> Result<(), String> {
         .unwrap()
         .as_secs();
     save_update_settings(&settings)
-}
-
-/// Detect if the app was installed via Homebrew Cask (macOS only)
-pub fn is_homebrew_installed() -> bool {
-    #[cfg(target_os = "macos")]
-    {
-        let caskroom_paths = [
-            "/opt/homebrew/Caskroom/antigravity-tools",
-            "/usr/local/Caskroom/antigravity-tools",
-        ];
-
-        for path in &caskroom_paths {
-            if std::path::Path::new(path).exists() {
-                logger::log_info(&format!("Detected Homebrew Cask installation at: {}", path));
-                return true;
-            }
-        }
-    }
-
-    false
-}
-
-/// Execute `brew upgrade --cask antigravity-tools` with timeout (macOS only)
-#[cfg(not(target_os = "macos"))]
-pub async fn brew_upgrade_cask() -> Result<String, String> {
-    Err("brew_not_supported".to_string())
-}
-
-#[cfg(target_os = "macos")]
-pub async fn brew_upgrade_cask() -> Result<String, String> {
-    logger::log_info("Starting Homebrew Cask upgrade for antigravity-tools...");
-
-    // Find brew binary
-    let brew_path = if std::path::Path::new("/opt/homebrew/bin/brew").exists() {
-        "/opt/homebrew/bin/brew"
-    } else if std::path::Path::new("/usr/local/bin/brew").exists() {
-        "/usr/local/bin/brew"
-    } else {
-        return Err("brew_not_found".to_string());
-    };
-
-    // 3 min timeout to prevent hanging
-    let result = tokio::time::timeout(
-        std::time::Duration::from_secs(180),
-        tokio::process::Command::new(brew_path)
-            .args(["upgrade", "--cask", "antigravity-tools"])
-            .output()
-    ).await;
-
-    let output = match result {
-        Ok(Ok(output)) => output,
-        Ok(Err(e)) => {
-            logger::log_error(&format!("Failed to execute brew upgrade: {}", e));
-            return Err("brew_exec_failed".to_string());
-        }
-        Err(_) => {
-            logger::log_error("Homebrew upgrade timed out after 3 minutes");
-            return Err("brew_timeout".to_string());
-        }
-    };
-
-    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-
-    if output.status.success() {
-        logger::log_info(&format!("Homebrew upgrade succeeded: {}", stdout));
-        Ok(stdout)
-    } else {
-        logger::log_error(&format!("brew upgrade failed - stdout: {} stderr: {}", stdout, stderr));
-        // Return structured error key for frontend i18n
-        if stderr.contains("already installed") || stdout.contains("already installed") {
-            Err("brew_already_latest".to_string())
-        } else {
-            Err("brew_upgrade_failed".to_string())
-        }
-    }
 }
 
 #[cfg(test)]

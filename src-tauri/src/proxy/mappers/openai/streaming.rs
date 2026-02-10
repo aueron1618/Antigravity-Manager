@@ -8,19 +8,19 @@ use std::pin::Pin;
 use tracing::debug;
 use uuid::Uuid;
 
-
-
 /// 保存 thoughtSignature 到会话缓存
 pub fn store_thought_signature(sig: &str, session_id: &str, message_count: usize) {
     if sig.is_empty() {
         return;
     }
 
-
-
     // 2. [CRITICAL] 存储到 Session 隔离缓存 (对齐 Claude 协议)
-    crate::proxy::SignatureCache::global().cache_session_signature(session_id, sig.to_string(), message_count);
-    
+    crate::proxy::SignatureCache::global().cache_session_signature(
+        session_id,
+        sig.to_string(),
+        message_count,
+    );
+
     tracing::debug!(
         "[ThoughtSig] 存储 Session 签名 (sid: {}, len: {}, msg_count: {})",
         session_id,
@@ -28,8 +28,6 @@ pub fn store_thought_signature(sig: &str, session_id: &str, message_count: usize
         message_count
     );
 }
-
-
 
 /// Extract and convert Gemini usageMetadata to OpenAI usage format
 fn extract_usage_metadata(u: &Value) -> Option<super::models::OpenAIUsage> {
@@ -130,7 +128,7 @@ pub fn create_openai_sse_stream(
                                                                     emitted_tool_calls.insert(call_key);
                                                                     let name = func_call.get("name").and_then(|v| v.as_str()).unwrap_or("unknown");
                                                                     let mut args = func_call.get("args").unwrap_or(&json!({})).clone();
-                                                                    
+
                                                                     // [FIX #1575] 标准化 shell 工具参数名称
                                                                     // Gemini 可能使用 cmd/code/script 等替代参数名，统一为 command
                                                                     if name == "shell" || name == "bash" || name == "local_shell" {
@@ -146,7 +144,7 @@ pub fn create_openai_sse_stream(
                                                                             }
                                                                         }
                                                                     }
-                                                                    
+
                                                                     let args_str = serde_json::to_string(&args).unwrap_or_default();
                                                                     let mut hasher = std::collections::hash_map::DefaultHasher::new();
                                                                     use std::hash::{Hash, Hasher};
@@ -293,7 +291,7 @@ pub fn create_openai_sse_stream(
                     let json_part = line.trim_start_matches("data: ").trim();
                     if json_part != "[DONE]" {
                         // Re-use logic for processing the last line
-                        // (Note: In a more complex refactor we'd extract this to a function, 
+                        // (Note: In a more complex refactor we'd extract this to a function,
                         // but for a targeted fix, processing the terminal data chunk is safer)
                         tracing::debug!("[OpenAI-SSE] Flushing remaining {} bytes in buffer", buffer.len());
                     }
@@ -317,10 +315,12 @@ pub fn create_legacy_sse_stream(
     let mut buffer = BytesMut::new();
     let charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let mut rng = rand::thread_rng();
-    let random_str: String = (0..28).map(|_| {
-        let idx = rng.gen_range(0..charset.len());
-        charset.chars().nth(idx).unwrap()
-    }).collect();
+    let random_str: String = (0..28)
+        .map(|_| {
+            let idx = rng.gen_range(0..charset.len());
+            charset.chars().nth(idx).unwrap()
+        })
+        .collect();
     let stream_id = format!("cmpl-{}", random_str);
     let created_ts = Utc::now().timestamp();
 
@@ -415,10 +415,12 @@ pub fn create_codex_sse_stream(
     let mut buffer = BytesMut::new();
     let charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let mut rng = rand::thread_rng();
-    let random_str: String = (0..24).map(|_| {
-        let idx = rng.gen_range(0..charset.len());
-        charset.chars().nth(idx).unwrap()
-    }).collect();
+    let random_str: String = (0..24)
+        .map(|_| {
+            let idx = rng.gen_range(0..charset.len());
+            charset.chars().nth(idx).unwrap()
+        })
+        .collect();
     let response_id = format!("resp-{}", random_str);
 
     let stream = async_stream::stream! {

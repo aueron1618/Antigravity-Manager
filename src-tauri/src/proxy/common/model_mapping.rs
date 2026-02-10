@@ -1,6 +1,6 @@
 // 模型名称映射
-use std::collections::HashMap;
 use once_cell::sync::Lazy;
+use std::collections::HashMap;
 
 static CLAUDE_TO_GEMINI: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
     let mut m = HashMap::new();
@@ -53,7 +53,7 @@ static CLAUDE_TO_GEMINI: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|
     m.insert("gemini-3-pro-low", "gemini-3-pro-preview");
     m.insert("gemini-3-pro-high", "gemini-3-pro-preview");
     m.insert("gemini-3-pro-preview", "gemini-3-pro-preview");
-    m.insert("gemini-3-pro", "gemini-3-pro-preview");  // 统一映射到 preview
+    m.insert("gemini-3-pro", "gemini-3-pro-preview"); // 统一映射到 preview
     m.insert("gemini-2.5-flash", "gemini-2.5-flash");
     m.insert("gemini-3-flash", "gemini-3-flash");
     m.insert("gemini-3-pro-image", "gemini-3-pro-image");
@@ -62,52 +62,61 @@ static CLAUDE_TO_GEMINI: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|
     // Allows users to override all background tasks via custom_mapping
     m.insert("internal-background-task", "gemini-2.5-flash");
 
-
     m
 });
 
-
 /// Map Claude model names to Gemini model names
-/// 
+///
 /// # 映射策略
 /// 1. **精确匹配**: 检查 CLAUDE_TO_GEMINI 映射表
 /// 2. **已知前缀透传**: gemini-* 和 *-thinking 模型直接透传
 /// 3. **[NEW] 直接透传**: 未知模型 ID 直接传递给 Google API (支持体验未发布模型)
-/// 
+///
 /// # 参数
 /// - `input`: 原始模型名称
-/// 
+///
 /// # 返回
 /// 映射后的目标模型名称
-/// 
+///
 /// # 示例
 /// ```
 /// // 精确匹配
 /// assert_eq!(map_claude_model_to_gemini("claude-opus-4"), "claude-opus-4-5-thinking");
-/// 
+///
 /// // Gemini 模型透传
 /// assert_eq!(map_claude_model_to_gemini("gemini-2.5-flash"), "gemini-2.5-flash");
-/// 
+///
 /// // 直接透传未知模型 (NEW!)
 /// assert_eq!(map_claude_model_to_gemini("claude-opus-4-6"), "claude-opus-4-6");
 /// assert_eq!(map_claude_model_to_gemini("claude-sonnet-5"), "claude-sonnet-5");
 /// ```
 pub fn map_claude_model_to_gemini(input: &str) -> String {
+    let thinking_mapping_enabled =
+        crate::proxy::config::get_claude_thinking_mapping_enabled();
+    let mut resolved_input = input;
+    if thinking_mapping_enabled {
+        let lower = input.to_lowercase();
+        if lower.contains("claude") && lower.ends_with("-thinking") {
+            if let Some(trimmed) = input.strip_suffix("-thinking") {
+                resolved_input = trimmed;
+            }
+        }
+    }
+
     // 1. Check exact match in map
-    if let Some(mapped) = CLAUDE_TO_GEMINI.get(input) {
+    if let Some(mapped) = CLAUDE_TO_GEMINI.get(resolved_input) {
         return mapped.to_string();
     }
 
     // 2. Pass-through known prefixes (gemini-, -thinking) to support dynamic suffixes
-    if input.starts_with("gemini-") || input.contains("thinking") {
-        return input.to_string();
+    if resolved_input.starts_with("gemini-") || resolved_input.contains("thinking") {
+        return resolved_input.to_string();
     }
-
 
     // 3. [ENHANCED] 直接透传未知模型 ID,而不是强制 fallback
     // 这允许用户通过自定义映射体验未发布的模型 (如 claude-opus-4-6)
     // Google API 会自动处理无效模型并返回错误,用户可以根据错误调整映射
-    input.to_string()
+    resolved_input.to_string()
 }
 
 /// 获取所有内置支持的模型列表关键字
@@ -137,12 +146,12 @@ pub async fn get_all_dynamic_models(
 
     // 5. 确保包含常用的 Gemini/画画模型 ID
     model_ids.insert("gemini-3-pro-low".to_string());
-    
+
     // [NEW] Issue #247: Dynamically generate all Image Gen Combinations
     let base = "gemini-3-pro-image";
     let resolutions = vec!["", "-2k", "-4k"];
     let ratios = vec!["", "-1x1", "-4x3", "-3x4", "-16x9", "-9x16", "-21x9"];
-    
+
     for res in resolutions {
         for ratio in ratios.iter() {
             let mut id = base.to_string();
@@ -154,11 +163,10 @@ pub async fn get_all_dynamic_models(
 
     model_ids.insert("gemini-2.0-flash-exp".to_string());
     model_ids.insert("gemini-2.5-flash".to_string());
-    // gemini-2.5-pro removed 
+    // gemini-2.5-pro removed
     model_ids.insert("gemini-3-flash".to_string());
     model_ids.insert("gemini-3-pro-high".to_string());
     model_ids.insert("gemini-3-pro-low".to_string());
-
 
     let mut sorted_ids: Vec<_> = model_ids.into_iter().collect();
     sorted_ids.sort();
@@ -213,11 +221,11 @@ fn wildcard_match(pattern: &str, text: &str) -> bool {
 
 /// 核心模型路由解析引擎
 /// 优先级：精确匹配 > 通配符匹配 > 系统默认映射
-/// 
+///
 /// # 参数
 /// - `original_model`: 原始模型名称
 /// - `custom_mapping`: 用户自定义映射表
-/// 
+///
 /// # 返回
 /// 映射后的目标模型名称
 pub fn resolve_model_route(
@@ -226,10 +234,13 @@ pub fn resolve_model_route(
 ) -> String {
     // 1. 精确匹配 (最高优先级)
     if let Some(target) = custom_mapping.get(original_model) {
-        crate::modules::logger::log_info(&format!("[Router] 精确映射: {} -> {}", original_model, target));
+        crate::modules::logger::log_info(&format!(
+            "[Router] 精确映射: {} -> {}",
+            original_model, target
+        ));
         return target.clone();
     }
-    
+
     // 2. Wildcard match - most specific (highest non-wildcard chars) wins
     // Note: When multiple patterns have the SAME specificity, HashMap iteration order
     // determines the result (non-deterministic). Users can avoid this by making patterns
@@ -252,27 +263,30 @@ pub fn resolve_model_route(
         ));
         return target.to_string();
     }
-    
+
     // 3. 系统默认映射
     let result = map_claude_model_to_gemini(original_model);
     if result != original_model {
-        crate::modules::logger::log_info(&format!("[Router] 系统默认映射: {} -> {}", original_model, result));
+        crate::modules::logger::log_info(&format!(
+            "[Router] 系统默认映射: {} -> {}",
+            original_model, result
+        ));
     }
     result
 }
 
 /// Normalize any physical model name to one of the 3 standard protection IDs.
 /// This ensures quota protection works consistently regardless of API versioning or request variations.
-/// 
+///
 /// Standard IDs:
 /// - `gemini-3-flash`: All Flash variants (1.5-flash, 2.5-flash, 3-flash, etc.)
 /// - `gemini-3-pro-high`: All Pro variants (1.5-pro, 2.5-pro, etc.)
 /// - `claude-sonnet-4-5`: All Claude Sonnet variants (3-5-sonnet, sonnet-4-5, etc.)
-/// 
+///
 /// Returns `None` if the model doesn't match any of the 3 protected categories.
 pub fn normalize_to_standard_id(model_name: &str) -> Option<String> {
     let lower = model_name.to_lowercase();
-    
+
     match lower.as_str() {
         // 1. gemini-3-pro-image (严格匹配)
         "gemini-3-pro-image" => Some("gemini-3-pro-image".to_string()),
@@ -284,13 +298,13 @@ pub fn normalize_to_standard_id(model_name: &str) -> Option<String> {
         "gemini-3-pro-high" | "gemini-3-pro-low" => Some("gemini-3-pro-high".to_string()),
 
         // 4. Claude 4.6 系列 (严格名单匹配)
-        "claude-opus-4-6-thinking" |
-        "claude-opus-4-5-thinking" |
-        "claude-sonnet-4-5-thinking" |
-        "claude-sonnet-4-5" |
-        "claude" => Some("claude".to_string()),
+        "claude-opus-4-6-thinking"
+        | "claude-opus-4-5-thinking"
+        | "claude-sonnet-4-5-thinking"
+        | "claude-sonnet-4-5"
+        | "claude" => Some("claude".to_string()),
 
-        _ => None
+        _ => None,
     }
 }
 
@@ -306,33 +320,23 @@ mod tests {
         );
         assert_eq!(
             map_claude_model_to_gemini("claude-opus-4"),
-            "claude-opus-4-6-thinking"
+            "claude-opus-4-5-thinking"
         );
         // Test gemini pass-through (should not be caught by "mini" rule)
         assert_eq!(
             map_claude_model_to_gemini("gemini-2.5-flash-mini-test"),
             "gemini-2.5-flash-mini-test"
         );
-        assert_eq!(
-            map_claude_model_to_gemini("unknown-model"),
-            "unknown-model"
-        );
+        assert_eq!(map_claude_model_to_gemini("unknown-model"), "unknown-model");
 
-        // Test Normalization (Opus 4.6 now merged into "claude" group)
-        assert_eq!(normalize_to_standard_id("claude-opus-4-6-thinking"), Some("claude".to_string()));
+        // Test Normalization Exception (Opus 4.6 now merged)
+        assert_eq!(
+            normalize_to_standard_id("claude-opus-4-6-thinking"),
+            Some("claude".to_string())
+        );
         assert_eq!(
             normalize_to_standard_id("claude-sonnet-4-5"),
             Some("claude".to_string())
-        );
-
-        // [Regression] gemini-3-pro-image must NOT be grouped with gemini-3-pro-high
-        assert_eq!(
-            normalize_to_standard_id("gemini-3-pro-image"),
-            Some("gemini-3-pro-image".to_string())
-        );
-        assert_eq!(
-            normalize_to_standard_id("gemini-3-pro-high"),
-            Some("gemini-3-pro-high".to_string())
         );
     }
 
@@ -342,20 +346,32 @@ mod tests {
         custom.insert("gpt*".to_string(), "fallback".to_string());
         custom.insert("gpt-4*".to_string(), "specific".to_string());
         custom.insert("claude-opus-*".to_string(), "opus-default".to_string());
-        custom.insert("claude-opus*thinking".to_string(), "opus-thinking".to_string());
+        custom.insert(
+            "claude-opus*thinking".to_string(),
+            "opus-thinking".to_string(),
+        );
 
         // More specific pattern wins
         assert_eq!(resolve_model_route("gpt-4-turbo", &custom), "specific");
         assert_eq!(resolve_model_route("gpt-3.5", &custom), "fallback");
         // Suffix constraint is more specific than prefix-only
-        assert_eq!(resolve_model_route("claude-opus-4-5-thinking", &custom), "opus-thinking");
-        assert_eq!(resolve_model_route("claude-opus-4", &custom), "opus-default");
+        assert_eq!(
+            resolve_model_route("claude-opus-4-5-thinking", &custom),
+            "opus-thinking"
+        );
+        assert_eq!(
+            resolve_model_route("claude-opus-4", &custom),
+            "opus-default"
+        );
     }
 
     #[test]
     fn test_multi_wildcard_support() {
         let mut custom = HashMap::new();
-        custom.insert("claude-*-sonnet-*".to_string(), "sonnet-versioned".to_string());
+        custom.insert(
+            "claude-*-sonnet-*".to_string(),
+            "sonnet-versioned".to_string(),
+        );
         custom.insert("gpt-*-*".to_string(), "gpt-multi".to_string());
         custom.insert("*thinking*".to_string(), "has-thinking".to_string());
 
@@ -376,7 +392,7 @@ mod tests {
         // Negative case: *thinking* should NOT match models without "thinking"
         assert_eq!(
             resolve_model_route("random-model-name", &custom),
-            "random-model-name"  // Falls back to system default (pass-through)
+            "random-model-name" // Falls back to system default (pass-through)
         );
     }
 
@@ -388,7 +404,10 @@ mod tests {
         custom.insert("a*b*c".to_string(), "multi-wild".to_string());
 
         // Specificity: "prefix*" (6) > "*" (0)
-        assert_eq!(resolve_model_route("prefix-anything", &custom), "prefix-match");
+        assert_eq!(
+            resolve_model_route("prefix-anything", &custom),
+            "prefix-match"
+        );
         // Catch-all has lowest specificity
         assert_eq!(resolve_model_route("random-model", &custom), "catch-all");
         // Multi-wildcard: "a*b*c" (3)

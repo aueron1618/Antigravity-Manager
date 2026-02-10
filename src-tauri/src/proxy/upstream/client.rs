@@ -192,6 +192,27 @@ impl UpstreamClient {
         }
     }
 
+    fn resolve_base_urls() -> Vec<String> {
+        let cfg = crate::proxy::config::get_endpoint_proxy_config();
+        if cfg.enabled {
+            let mut urls: Vec<String> = cfg
+                .base_urls
+                .iter()
+                .map(|u| u.trim())
+                .filter(|u| !u.is_empty())
+                .map(|u| u.trim_end_matches('/').to_string())
+                .collect();
+            if !urls.is_empty() {
+                return urls;
+            }
+        }
+
+        V1_INTERNAL_BASE_URL_FALLBACKS
+            .iter()
+            .map(|u| u.to_string())
+            .collect()
+    }
+
     /// Determine if we should try next endpoint (fallback logic)
     fn should_try_next_endpoint(status: StatusCode) -> bool {
         status == StatusCode::TOO_MANY_REQUESTS
@@ -272,9 +293,10 @@ impl UpstreamClient {
         let mut fallback_attempts: Vec<FallbackAttemptLog> = Vec::new();
 
         // 遍历所有端点，失败时自动切换
-        for (idx, base_url) in V1_INTERNAL_BASE_URL_FALLBACKS.iter().enumerate() {
+        let base_urls = Self::resolve_base_urls();
+        for (idx, base_url) in base_urls.iter().enumerate() {
             let url = Self::build_url(base_url, method, query_string);
-            let has_next = idx + 1 < V1_INTERNAL_BASE_URL_FALLBACKS.len();
+            let has_next = idx + 1 < base_urls.len();
 
             let response = client
                 .post(&url)
@@ -292,7 +314,7 @@ impl UpstreamClient {
                                 "✓ Upstream fallback succeeded | Endpoint: {} | Status: {} | Next endpoints available: {}",
                                 base_url,
                                 status,
-                                V1_INTERNAL_BASE_URL_FALLBACKS.len() - idx - 1
+                                base_urls.len() - idx - 1
                             );
                         } else {
                             tracing::debug!(

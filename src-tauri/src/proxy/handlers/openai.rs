@@ -7,10 +7,17 @@ use bytes::Bytes;
 use serde_json::{json, Value};
 use tracing::{debug, error, info}; // Import Engine trait for encode method
 
+use crate::proxy::mappers::openai::models::{
+    OpenAIContent, OpenAIContentBlock, OpenAIResponse, ToolCall,
+};
 use crate::proxy::mappers::openai::{
     transform_openai_request, transform_openai_response, OpenAIRequest,
 };
 // use crate::proxy::upstream::client::UpstreamClient; // 通过 state 获取
+use crate::proxy::common::punctuation::normalize_punctuation_with_tags;
+use crate::proxy::common::stream_features::{
+    append_fake_stream_prefixes, strip_fake_stream_prefix,
+};
 use crate::proxy::debug_logger;
 use crate::proxy::server::AppState;
 use crate::proxy::upstream::client::mask_email;
@@ -23,6 +30,148 @@ use crate::proxy::common::client_adapter::CLIENT_ADAPTERS; // [NEW] Adapter Regi
 use crate::proxy::session_manager::SessionManager;
 use axum::http::HeaderMap;
 use tokio::time::Duration;
+
+fn openai_content_to_text(content: &Option<OpenAIContent>) -> Option<String> {
+    match content {
+        Some(OpenAIContent::String(s)) => Some(s.clone()),
+        Some(OpenAIContent::Array(blocks)) => {
+            let mut merged = String::new();
+            for block in blocks {
+                if let crate::proxy::mappers::openai::models::OpenAIContentBlock::Text { text } =
+                    block
+                {
+                    merged.push_str(text);
+                }
+            }
+            if merged.is_empty() {
+                None
+            } else {
+                Some(merged)
+            }
+        }
+        None => None,
+    }
+}
+
+fn tool_calls_to_delta(tool_calls: &[ToolCall]) -> Vec<Value> {
+    tool_calls
+        .iter()
+        .enumerate()
+        .map(|(index, tc)| {
+            json!({
+                "index": index,
+                "id": &tc.id,
+                "type": &tc.r#type,
+                "function": {
+                    "name": &tc.function.name,
+                    "arguments": &tc.function.arguments
+                }
+            })
+        })
+        .collect()
+}
+
+fn build_fake_stream_from_openai_response(
+    response: &OpenAIResponse,
+    response_model: &str,
+    mapped_model: &str,
+    email: &str,
+) -> Response {
+    use std::convert::Infallible;
+
+    let first_choice = response.choices.first();
+    let mut delta = json!({ "role": "assistant" });
+    let mut finish_reason: Value = Value::String("stop".to_string());
+
+    if let Some(choice) = first_choice {
+        if let Some(text) = openai_content_to_text(&choice.message.content) {
+            delta["content"] = Value::String(text);
+        }
+        if let Some(reasoning) = &choice.message.reasoning_content {
+            delta["reasoning_content"] = Value::String(reasoning.clone());
+        }
+        if let Some(tool_calls) = &choice.message.tool_calls {
+            delta["tool_calls"] = Value::Array(tool_calls_to_delta(tool_calls));
+        }
+        finish_reason = serde_json::to_value(choice.finish_reason.clone()).unwrap_or(Value::Null);
+    }
+
+    let first_chunk = json!({
+        "id": &response.id,
+        "object": "chat.completion.chunk",
+        "created": response.created,
+        "model": response_model,
+        "choices": [{"index": 0, "delta": delta, "finish_reason": Value::Null}]
+    });
+    let final_chunk = json!({
+        "id": &response.id,
+        "object": "chat.completion.chunk",
+        "created": response.created,
+        "model": response_model,
+        "choices": [{"index": 0, "delta": {}, "finish_reason": finish_reason}],
+        "usage": response.usage.clone()
+    });
+
+    let chunks = vec![
+        Bytes::from(format!("data: {}\n\n", first_chunk)),
+        Bytes::from(format!("data: {}\n\n", final_chunk)),
+        Bytes::from("data: [DONE]\n\n"),
+    ];
+    let stream = futures::stream::iter(chunks.into_iter().map(Ok::<Bytes, Infallible>));
+
+    Response::builder()
+        .status(StatusCode::OK)
+        .header("Content-Type", "text/event-stream")
+        .header("Cache-Control", "no-cache")
+        .header("Connection", "keep-alive")
+        .header("X-Accel-Buffering", "no")
+        .header("X-Account-Email", email)
+        .header("X-Mapped-Model", mapped_model)
+        .body(axum::body::Body::from_stream(stream))
+        .unwrap()
+}
+
+fn maybe_normalize_openai_content(content: &mut Option<OpenAIContent>, exclude_tags: &str) {
+    let Some(content) = content else {
+        return;
+    };
+
+    match content {
+        OpenAIContent::String(text) => {
+            if !text.is_empty() {
+                *text = normalize_punctuation_with_tags(text, exclude_tags);
+            }
+        }
+        OpenAIContent::Array(blocks) => {
+            for block in blocks.iter_mut() {
+                if let OpenAIContentBlock::Text { text } = block {
+                    if !text.is_empty() {
+                        *text = normalize_punctuation_with_tags(text, exclude_tags);
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn maybe_apply_punctuation_to_openai_response(
+    response: &mut OpenAIResponse,
+    punctuation_config: &crate::proxy::config::PunctuationConfig,
+) {
+    if !punctuation_config.normalize {
+        return;
+    }
+
+    let exclude_tags = if punctuation_config.exclude_tags.trim().is_empty() {
+        "code,pre,script,style"
+    } else {
+        punctuation_config.exclude_tags.as_str()
+    };
+
+    for choice in response.choices.iter_mut() {
+        maybe_normalize_openai_content(&mut choice.message.content, exclude_tags);
+    }
+}
 
 pub async fn handle_chat_completions(
     State(state): State<AppState>,
@@ -102,11 +251,20 @@ pub async fn handle_chat_completions(
             });
     }
 
+    let stream_handling = crate::proxy::config::get_stream_handling_config();
+    let requested_model = openai_req.model.clone();
+    let (effective_model, fake_stream_prefix_requested) =
+        strip_fake_stream_prefix(&requested_model);
+    if fake_stream_prefix_requested {
+        openai_req.model = effective_model;
+    }
+
+    let punctuation_config = crate::proxy::config::get_punctuation_config();
     let trace_id = format!("req_{}", chrono::Utc::now().timestamp_subsec_millis());
     info!(
         "[{}] OpenAI Chat Request: {} | {} messages | stream: {}",
         trace_id,
-        openai_req.model,
+        requested_model,
         openai_req.messages.len(),
         openai_req.stream
     );
@@ -117,7 +275,7 @@ pub async fn handle_chat_completions(
             "kind": "original_request",
             "protocol": "openai",
             "trace_id": trace_id,
-            "original_model": openai_req.model,
+            "original_model": requested_model.as_str(),
             "request": original_body,  // 使用原始请求体，不是结构体序列化
         });
         debug_logger::write_debug_payload(
@@ -208,7 +366,7 @@ pub async fn handle_chat_completions(
                 "kind": "v1internal_request",
                 "protocol": "openai",
                 "trace_id": trace_id,
-                "original_model": openai_req.model,
+                "original_model": requested_model.as_str(),
                 "mapped_model": mapped_model,
                 "request_type": config.request_type,
                 "attempt": attempt,
@@ -230,9 +388,18 @@ pub async fn handle_chat_completions(
 
         // 5. 发送请求
         let client_wants_stream = openai_req.stream;
-        let force_stream_internally = !client_wants_stream;
+        let fake_prefix_stream_mode = fake_stream_prefix_requested
+            && stream_handling.enable_fake_streaming
+            && client_wants_stream;
+        let force_stream_internally = !client_wants_stream && stream_handling.fake_non_stream;
         let actual_stream = client_wants_stream || force_stream_internally;
 
+        if fake_prefix_stream_mode {
+            debug!(
+                "[{}] Prefix fake streaming active for model {}",
+                trace_id, requested_model
+            );
+        }
         if force_stream_internally {
             debug!(
                 "[{}] 🔄 Auto-converting non-stream request to stream for better quota",
@@ -240,12 +407,18 @@ pub async fn handle_chat_completions(
             );
         }
 
-        let method = if actual_stream {
+        let upstream_uses_stream = actual_stream && !fake_prefix_stream_mode;
+
+        let method = if upstream_uses_stream {
             "streamGenerateContent"
         } else {
             "generateContent"
         };
-        let query_string = if actual_stream { Some("alt=sse") } else { None };
+        let query_string = if upstream_uses_stream {
+            Some("alt=sse")
+        } else {
+            None
+        };
 
         // [FIX #1522] Inject Anthropic Beta Headers for Claude models (OpenAI path)
         let mut extra_headers = std::collections::HashMap::new();
@@ -301,7 +474,7 @@ pub async fn handle_chat_completions(
                 "kind": "endpoint_fallback",
                 "protocol": "openai",
                 "trace_id": trace_id,
-                "original_model": openai_req.model,
+                "original_model": requested_model.as_str(),
                 "mapped_model": mapped_model,
                 "attempt": attempt,
                 "account": mask_email(&email),
@@ -322,7 +495,7 @@ pub async fn handle_chat_completions(
         let status = response.status();
         if status.is_success() {
             // 5. 处理流式 vs 非流式
-            if actual_stream {
+            if upstream_uses_stream {
                 use axum::body::Body;
                 use axum::response::Response;
                 use futures::StreamExt;
@@ -330,7 +503,7 @@ pub async fn handle_chat_completions(
                 let meta = json!({
                     "protocol": "openai",
                     "trace_id": trace_id,
-                    "original_model": openai_req.model,
+                    "original_model": requested_model.as_str(),
                     "mapped_model": mapped_model,
                     "request_type": config.request_type,
                     "attempt": attempt,
@@ -350,7 +523,7 @@ pub async fn handle_chat_completions(
                 use crate::proxy::mappers::openai::streaming::create_openai_sse_stream;
                 let mut openai_stream = create_openai_sse_stream(
                     gemini_stream,
-                    openai_req.model.clone(),
+                    requested_model.clone(),
                     session_id,
                     message_count,
                 );
@@ -445,8 +618,13 @@ pub async fn handle_chat_completions(
                     use crate::proxy::mappers::openai::collector::collect_stream_to_json;
 
                     match collect_stream_to_json(Box::pin(combined_stream)).await {
-                        Ok(full_response) => {
+                        Ok(mut full_response) => {
                             info!("[{}] ✓ Stream collected and converted to JSON", trace_id);
+                            maybe_apply_punctuation_to_openai_response(
+                                &mut full_response,
+                                &punctuation_config,
+                            );
+
                             return Ok((
                                 StatusCode::OK,
                                 [
@@ -474,8 +652,22 @@ pub async fn handle_chat_completions(
                 .await
                 .map_err(|e| (StatusCode::BAD_GATEWAY, format!("Parse error: {}", e)))?;
 
-            let openai_response =
+            let mut openai_response =
                 transform_openai_response(&gemini_resp, Some(&session_id), message_count);
+            if fake_stream_prefix_requested {
+                openai_response.model = requested_model.clone();
+            }
+            maybe_apply_punctuation_to_openai_response(&mut openai_response, &punctuation_config);
+
+            if fake_prefix_stream_mode {
+                return Ok(build_fake_stream_from_openai_response(
+                    &openai_response,
+                    &requested_model,
+                    &mapped_model,
+                    &email,
+                ));
+            }
+
             return Ok((
                 StatusCode::OK,
                 [
@@ -511,7 +703,7 @@ pub async fn handle_chat_completions(
                 "kind": "upstream_response_error",
                 "protocol": "openai",
                 "trace_id": trace_id,
-                "original_model": openai_req.model,
+                "original_model": requested_model.as_str(),
                 "mapped_model": mapped_model,
                 "request_type": config.request_type,
                 "attempt": attempt,
@@ -1121,6 +1313,9 @@ pub async fn handle_completions(
     // [FIX] Ensure max_attempts is at least 2 to allow for internal retries
     let max_attempts = MAX_RETRY_ATTEMPTS.min(pool_size.saturating_add(1)).max(2);
 
+    let punctuation_config = crate::proxy::config::get_punctuation_config();
+    let stream_handling = crate::proxy::config::get_stream_handling_config();
+
     let mut last_error = String::new();
     let mut last_email: Option<String> = None;
 
@@ -1194,7 +1389,7 @@ pub async fn handle_completions(
 
         // [AUTO-CONVERSION] For Legacy/Codex as well
         let client_wants_stream = openai_req.stream;
-        let force_stream_internally = !client_wants_stream;
+        let force_stream_internally = !client_wants_stream && stream_handling.fake_non_stream;
         let list_response = client_wants_stream || force_stream_internally;
         let method = if list_response {
             "streamGenerateContent"
@@ -1397,8 +1592,13 @@ pub async fn handle_completions(
 
                     // Collect
                     use crate::proxy::mappers::openai::collector::collect_stream_to_json;
+
                     match collect_stream_to_json(Box::pin(combined_stream)).await {
-                        Ok(chat_resp) => {
+                        Ok(mut chat_resp) => {
+                            maybe_apply_punctuation_to_openai_response(
+                                &mut chat_resp,
+                                &punctuation_config,
+                            );
                             // NOW: Convert Chat Response -> Legacy Response (Same logic as below)
                             let choices = chat_resp.choices.iter().map(|c| {
                                 json!({
@@ -1454,7 +1654,8 @@ pub async fn handle_completions(
                 }
             };
 
-            let chat_resp = transform_openai_response(&gemini_resp, Some("session-123"), 1);
+            let mut chat_resp = transform_openai_response(&gemini_resp, Some("session-123"), 1);
+            maybe_apply_punctuation_to_openai_response(&mut chat_resp, &punctuation_config);
 
             // Map Chat Response -> Legacy Completions Response
             let choices = chat_resp.choices.iter().map(|c| {
@@ -1562,7 +1763,11 @@ pub async fn handle_completions(
 pub async fn handle_list_models(State(state): State<AppState>) -> impl IntoResponse {
     use crate::proxy::common::model_mapping::get_all_dynamic_models;
 
-    let model_ids = get_all_dynamic_models(&state.custom_mapping).await;
+    let stream_handling = crate::proxy::config::get_stream_handling_config();
+    let model_ids = append_fake_stream_prefixes(
+        get_all_dynamic_models(&state.custom_mapping).await,
+        stream_handling.enable_fake_streaming,
+    );
 
     let data: Vec<_> = model_ids
         .into_iter()

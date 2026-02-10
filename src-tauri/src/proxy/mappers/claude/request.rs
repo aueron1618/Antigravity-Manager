@@ -640,7 +640,6 @@ pub fn transform_claude_request_in(
         }
     }
 
-
     // 生成 requestId
     let request_id = format!("agent-{}", uuid::Uuid::new_v4());
 
@@ -1755,7 +1754,8 @@ fn build_generation_config(
                 let mut custom_value = tb_config.custom_value;
                 // [FIX #1602] 针对 Gemini 系列模型，在自定义模式下也强制执行 24576 上限
                 let model_lower = mapped_model.to_lowercase();
-                let is_gemini_limited = (model_lower.contains("gemini") && !model_lower.contains("-image"))
+                let is_gemini_limited = (model_lower.contains("gemini")
+                    && !model_lower.contains("-image"))
                     || model_lower.contains("flash")
                     || model_lower.ends_with("-thinking");
 
@@ -1771,7 +1771,8 @@ fn build_generation_config(
             crate::proxy::config::ThinkingBudgetMode::Auto => {
                 // [FIX #1592] Use mapped model for robust detection, same as OpenAI protocol
                 let model_lower = mapped_model.to_lowercase();
-                let is_gemini_limited = (model_lower.contains("gemini") && !model_lower.contains("-image"))
+                let is_gemini_limited = (model_lower.contains("gemini")
+                    && !model_lower.contains("-image"))
                     || model_lower.contains("flash")
                     || model_lower.ends_with("-thinking");
                 if is_gemini_limited && budget_tokens > 24576 {
@@ -1836,7 +1837,11 @@ fn build_generation_config(
             let current = final_max_tokens.unwrap_or(0);
             if current <= budget as i64 {
                 // [FIX #1675] 针对图像模型使用更小的增量 (2048)
-                let overhead = if mapped_model.contains("-image") { 2048 } else { 8192 };
+                let overhead = if mapped_model.contains("-image") {
+                    2048
+                } else {
+                    8192
+                };
                 final_max_tokens = Some((budget + overhead) as i64);
                 tracing::info!(
                     "[Generation-Config] Bumping maxOutputTokens to {} due to thinking budget of {}", 
@@ -2759,11 +2764,16 @@ mod tests {
         let result = transform_claude_request_in(&req, "test-proj", false).unwrap();
 
         // 4. Verify thinkingConfig has includeThoughts: false
-        let gen_config = result["request"]["generationConfig"].as_object().expect("Should have generationConfig");
-        let thinking_config = gen_config.get("thinkingConfig").and_then(|t| t.as_object()).expect("Should have thinkingConfig (explicitly disabled)");
-        
+        let gen_config = result["request"]["generationConfig"]
+            .as_object()
+            .expect("Should have generationConfig");
+        let thinking_config = gen_config
+            .get("thinkingConfig")
+            .and_then(|t| t.as_object())
+            .expect("Should have thinkingConfig (explicitly disabled)");
+
         assert_eq!(thinking_config["includeThoughts"], false);
-        
+
         // 5. Reset global mode
         crate::proxy::config::update_image_thinking_mode(Some("enabled".to_string()));
     }
