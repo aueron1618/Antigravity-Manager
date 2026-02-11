@@ -3,10 +3,36 @@ use serde::{Deserialize, Serialize};
 // Google OAuth configuration
 const CLIENT_ID: &str = "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com";
 const CLIENT_SECRET: &str = "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";
-const TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
-const USERINFO_URL: &str = "https://www.googleapis.com/oauth2/v2/userinfo";
+const TOKEN_URL_DEFAULT: &str = "https://oauth2.googleapis.com/token";
+const USERINFO_URL_DEFAULT: &str = "https://www.googleapis.com/oauth2/v2/userinfo";
 
 const AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
+
+fn resolve_oauth_token_url() -> String {
+    let cfg = crate::proxy::config::get_endpoint_proxy_config();
+    if cfg.enabled {
+        if let Some(base) = cfg.oauth_url.as_ref() {
+            let trimmed = base.trim().trim_end_matches('/');
+            if !trimmed.is_empty() {
+                return format!("{}/token", trimmed);
+            }
+        }
+    }
+    TOKEN_URL_DEFAULT.to_string()
+}
+
+fn resolve_userinfo_url() -> String {
+    let cfg = crate::proxy::config::get_endpoint_proxy_config();
+    if cfg.enabled {
+        if let Some(base) = cfg.googleapis_url.as_ref() {
+            let trimmed = base.trim().trim_end_matches('/');
+            if !trimmed.is_empty() {
+                return format!("{}/oauth2/v2/userinfo", trimmed);
+            }
+        }
+    }
+    USERINFO_URL_DEFAULT.to_string()
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TokenResponse {
@@ -90,8 +116,9 @@ pub async fn exchange_code(code: &str, redirect_uri: &str) -> Result<TokenRespon
         ("grant_type", "authorization_code"),
     ];
 
+    let token_url = resolve_oauth_token_url();
     let response = client
-        .post(TOKEN_URL)
+        .post(token_url)
         .form(&params)
         .send()
         .await
@@ -163,8 +190,9 @@ pub async fn refresh_access_token(
         crate::modules::logger::log_info("Refreshing Token for generic request (no account_id)...");
     }
 
+    let token_url = resolve_oauth_token_url();
     let response = client
-        .post(TOKEN_URL)
+        .post(token_url)
         .form(&params)
         .send()
         .await
@@ -207,8 +235,9 @@ pub async fn get_user_info(
         crate::utils::http::get_client()
     };
 
+    let userinfo_url = resolve_userinfo_url();
     let response = client
-        .get(USERINFO_URL)
+        .get(userinfo_url)
         .bearer_auth(access_token)
         .send()
         .await

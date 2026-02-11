@@ -1,7 +1,7 @@
 use crate::models::{Account, AppConfig, QuotaData};
 use crate::modules;
-use tauri::{Emitter, Manager};
 use tauri_plugin_opener::OpenerExt;
+use tauri::{Emitter, Manager};
 
 // 导出 proxy 命令
 pub mod proxy;
@@ -11,8 +11,6 @@ pub mod autostart;
 pub mod cloudflared;
 // 导出 security 命令 (IP 监控)
 pub mod security;
-// 导出 proxy_pool 命令
-pub mod proxy_pool;
 // 导出 user_token 命令
 pub mod user_token;
 
@@ -30,7 +28,7 @@ pub async fn add_account(
     refresh_token: String,
 ) -> Result<Account, String> {
     let service = modules::account_service::AccountService::new(
-        crate::modules::integration::SystemManager::Desktop(app.clone()),
+        crate::modules::integration::SystemManager::Desktop(app.clone())
     );
 
     let mut account = service.add_account(&refresh_token).await?;
@@ -41,8 +39,7 @@ pub async fn add_account(
     // 重载账号池
     let _ = crate::commands::proxy::reload_proxy_accounts(
         app.state::<crate::commands::proxy::ProxyServiceState>(),
-    )
-    .await;
+    ).await;
 
     Ok(account)
 }
@@ -56,7 +53,7 @@ pub async fn delete_account(
     account_id: String,
 ) -> Result<(), String> {
     let service = modules::account_service::AccountService::new(
-        crate::modules::integration::SystemManager::Desktop(app.clone()),
+        crate::modules::integration::SystemManager::Desktop(app.clone())
     );
     service.delete_account(&account_id)?;
 
@@ -98,10 +95,7 @@ pub async fn reorder_accounts(
     proxy_state: tauri::State<'_, crate::commands::proxy::ProxyServiceState>,
     account_ids: Vec<String>,
 ) -> Result<(), String> {
-    modules::logger::log_info(&format!(
-        "收到账号重排序请求，共 {} 个账号",
-        account_ids.len()
-    ));
+    modules::logger::log_info(&format!("收到账号重排序请求，共 {} 个账号", account_ids.len()));
     modules::account::reorder_accounts(&account_ids).map_err(|e| {
         modules::logger::log_error(&format!("账号重排序失败: {}", e));
         e
@@ -120,17 +114,17 @@ pub async fn switch_account(
     account_id: String,
 ) -> Result<(), String> {
     let service = modules::account_service::AccountService::new(
-        crate::modules::integration::SystemManager::Desktop(app.clone()),
+        crate::modules::integration::SystemManager::Desktop(app.clone())
     );
-
+    
     service.switch_account(&account_id).await?;
-
+    
     // 同步托盘
     crate::modules::tray::update_tray_menus(&app);
 
     // [FIX #820] Notify proxy to clear stale session bindings and reload accounts
     let _ = crate::commands::proxy::reload_proxy_accounts(proxy_state).await;
-
+    
     Ok(())
 }
 
@@ -326,6 +320,7 @@ pub async fn open_device_folder(app: tauri::AppHandle) -> Result<(), String> {
         .map_err(|e| format!("打开目录失败: {}", e))
 }
 
+
 /// 加载配置
 #[tauri::command]
 pub async fn load_config() -> Result<AppConfig, String> {
@@ -359,43 +354,15 @@ pub async fn save_config(
         // 更新 z.ai 配置
         instance.axum_server.update_zai(&config.proxy).await;
         // 更新实验性配置
-        instance
-            .axum_server
-            .update_experimental(&config.proxy)
-            .await;
+        instance.axum_server.update_experimental(&config.proxy).await;
         // 更新调试日志配置
-        instance
-            .axum_server
-            .update_debug_logging(&config.proxy)
-            .await;
+        instance.axum_server.update_debug_logging(&config.proxy).await;
         // [NEW] 更新 User-Agent 配置
         instance.axum_server.update_user_agent(&config.proxy).await;
-        // 更新 Thinking Budget 配置
+        // [NEW] 更新 Thinking Budget 配置
         crate::proxy::update_thinking_budget_config(config.proxy.thinking_budget.clone());
-        // 更新 Claude Thinking Mapping 配置
-        crate::proxy::update_claude_thinking_mapping_enabled(
-            config.proxy.claude_thinking_mapping,
-        );
-        // [NEW] 更新全局系统提示词配置
-        crate::proxy::update_global_system_prompt_config(config.proxy.global_system_prompt.clone());
-        // [NEW] 更新全局图像思维模式配置
-        crate::proxy::update_image_thinking_mode(config.proxy.image_thinking_mode.clone());
-        // [NEW] 更新上游端点代理配置
-        crate::proxy::update_endpoint_proxy_config(config.proxy.endpoint_proxy.clone());
-        // [NEW] 更新流式行为配置
-        crate::proxy::update_stream_handling_config(config.proxy.stream_handling.clone());
-        // [NEW] 更新标点规范化配置
-        crate::proxy::update_punctuation_config(config.proxy.punctuation.clone());
-        // 更新代理池配置
-        instance
-            .axum_server
-            .update_proxy_pool(config.proxy.proxy_pool.clone())
-            .await;
         // 更新熔断配置
-        instance
-            .token_manager
-            .update_circuit_breaker_config(config.circuit_breaker.clone())
-            .await;
+        instance.token_manager.update_circuit_breaker_config(config.circuit_breaker.clone()).await;
         tracing::debug!("已同步热更新反代服务配置");
     }
 
@@ -408,7 +375,7 @@ pub async fn save_config(
 pub async fn start_oauth_login(app_handle: tauri::AppHandle) -> Result<Account, String> {
     modules::logger::log_info("开始 OAuth 授权流程...");
     let service = modules::account_service::AccountService::new(
-        crate::modules::integration::SystemManager::Desktop(app_handle.clone()),
+        crate::modules::integration::SystemManager::Desktop(app_handle.clone())
     );
 
     let mut account = service.start_oauth_login().await?;
@@ -430,7 +397,7 @@ pub async fn start_oauth_login(app_handle: tauri::AppHandle) -> Result<Account, 
 pub async fn complete_oauth_login(app_handle: tauri::AppHandle) -> Result<Account, String> {
     modules::logger::log_info("完成 OAuth 授权流程 (manual)...");
     let service = modules::account_service::AccountService::new(
-        crate::modules::integration::SystemManager::Desktop(app_handle.clone()),
+        crate::modules::integration::SystemManager::Desktop(app_handle.clone())
     );
 
     let mut account = service.complete_oauth_login().await?;
@@ -451,7 +418,7 @@ pub async fn complete_oauth_login(app_handle: tauri::AppHandle) -> Result<Accoun
 #[tauri::command]
 pub async fn prepare_oauth_url(app_handle: tauri::AppHandle) -> Result<String, String> {
     let service = modules::account_service::AccountService::new(
-        crate::modules::integration::SystemManager::Desktop(app_handle.clone()),
+        crate::modules::integration::SystemManager::Desktop(app_handle.clone())
     );
     service.prepare_oauth_url().await
 }
@@ -576,45 +543,15 @@ pub async fn sync_account_from_db(
     Ok(Some(account))
 }
 
-fn validate_path(path: &str) -> Result<(), String> {
-    if path.contains("..") {
-        return Err("非法路径: 不允许目录遍历".to_string());
-    }
-
-    // 检查是否指向系统敏感路径 (基础黑名单)
-    let lower_path = path.to_lowercase();
-    let sensitive_prefixes = [
-        "/etc/",
-        "/var/spool/cron",
-        "/root/",
-        "/proc/",
-        "/sys/",
-        "/dev/",
-        "c:\\windows",
-        "c:\\users\\administrator",
-        "c:\\pagefile.sys",
-    ];
-
-    for prefix in sensitive_prefixes {
-        if lower_path.starts_with(prefix) {
-            return Err(format!("安全拒绝: 禁止访问系统敏感路径 ({})", prefix));
-        }
-    }
-
-    Ok(())
-}
-
 /// 保存文本文件 (绕过前端 Scope 限制)
 #[tauri::command]
 pub async fn save_text_file(path: String, content: String) -> Result<(), String> {
-    validate_path(&path)?;
     std::fs::write(&path, content).map_err(|e| format!("写入文件失败: {}", e))
 }
 
 /// 读取文本文件 (绕过前端 Scope 限制)
 #[tauri::command]
 pub async fn read_text_file(path: String) -> Result<String, String> {
-    validate_path(&path)?;
     std::fs::read_to_string(&path).map_err(|e| format!("读取文件失败: {}", e))
 }
 
@@ -742,9 +679,7 @@ pub async fn check_for_updates() -> Result<UpdateInfo, String> {
 #[tauri::command]
 pub async fn should_check_updates() -> Result<bool, String> {
     let settings = crate::modules::update_checker::load_update_settings()?;
-    Ok(crate::modules::update_checker::should_check_for_updates(
-        &settings,
-    ))
+    Ok(crate::modules::update_checker::should_check_for_updates(&settings))
 }
 
 #[tauri::command]
@@ -753,24 +688,9 @@ pub async fn update_last_check_time() -> Result<(), String> {
 }
 
 
-/// 检测是否通过 Homebrew Cask 安装
-#[tauri::command]
-pub async fn check_homebrew_installation() -> Result<bool, String> {
-    Ok(crate::modules::update_checker::is_homebrew_installed())
-}
-
-/// 通过 Homebrew Cask 升级应用
-#[tauri::command]
-pub async fn brew_upgrade_cask() -> Result<String, String> {
-    modules::logger::log_info("收到前端触发的 Homebrew 升级请求");
-    crate::modules::update_checker::brew_upgrade_cask().await
-}
-
-
 /// 获取更新设置
 #[tauri::command]
-pub async fn get_update_settings() -> Result<crate::modules::update_checker::UpdateSettings, String>
-{
+pub async fn get_update_settings() -> Result<crate::modules::update_checker::UpdateSettings, String> {
     crate::modules::update_checker::load_update_settings()
 }
 
@@ -781,6 +701,8 @@ pub async fn save_update_settings(
 ) -> Result<(), String> {
     crate::modules::update_checker::save_update_settings(&settings)
 }
+
+
 
 /// 切换账号的反代禁用状态
 #[tauri::command]
@@ -799,19 +721,17 @@ pub async fn toggle_proxy_status(
 
     // 1. 读取账号文件
     let data_dir = modules::account::get_data_dir()?;
-    let account_path = data_dir
-        .join("accounts")
-        .join(format!("{}.json", account_id));
+    let account_path = data_dir.join("accounts").join(format!("{}.json", account_id));
 
     if !account_path.exists() {
         return Err(format!("账号文件不存在: {}", account_id));
     }
 
-    let content =
-        std::fs::read_to_string(&account_path).map_err(|e| format!("读取账号文件失败: {}", e))?;
+    let content = std::fs::read_to_string(&account_path)
+        .map_err(|e| format!("读取账号文件失败: {}", e))?;
 
-    let mut account_json: serde_json::Value =
-        serde_json::from_str(&content).map_err(|e| format!("解析账号文件失败: {}", e))?;
+    let mut account_json: serde_json::Value = serde_json::from_str(&content)
+        .map_err(|e| format!("解析账号文件失败: {}", e))?;
 
     // 2. 更新 proxy_disabled 字段
     if enable {
@@ -824,14 +744,14 @@ pub async fn toggle_proxy_status(
         let now = chrono::Utc::now().timestamp();
         account_json["proxy_disabled"] = serde_json::Value::Bool(true);
         account_json["proxy_disabled_at"] = serde_json::Value::Number(now.into());
-        account_json["proxy_disabled_reason"] =
-            serde_json::Value::String(reason.unwrap_or_else(|| "用户手动禁用".to_string()));
+        account_json["proxy_disabled_reason"] = serde_json::Value::String(
+            reason.unwrap_or_else(|| "用户手动禁用".to_string())
+        );
     }
 
     // 3. 保存到磁盘
-    let json_str = serde_json::to_string_pretty(&account_json)
-        .map_err(|e| format!("序列化账号数据失败: {}", e))?;
-    std::fs::write(&account_path, json_str).map_err(|e| format!("写入账号文件失败: {}", e))?;
+    std::fs::write(&account_path, serde_json::to_string_pretty(&account_json).unwrap())
+        .map_err(|e| format!("写入账号文件失败: {}", e))?;
 
     modules::logger::log_info(&format!(
         "账号反代状态已更新: {} ({})",
@@ -839,32 +759,8 @@ pub async fn toggle_proxy_status(
         if enable { "已启用" } else { "已禁用" }
     ));
 
-    // 4. 如果反代服务正在运行,立刻同步到内存池（避免禁用后仍被选中）
-    {
-        let instance_lock = proxy_state.instance.read().await;
-        if let Some(instance) = instance_lock.as_ref() {
-            // 如果禁用的是当前固定账号，则自动关闭固定模式（内存 + 配置持久化）
-            if !enable {
-                let pref_id = instance.token_manager.get_preferred_account().await;
-                if pref_id.as_deref() == Some(&account_id) {
-                    instance.token_manager.set_preferred_account(None).await;
-
-                    if let Ok(mut cfg) = crate::modules::config::load_app_config() {
-                        if cfg.proxy.preferred_account_id.as_deref() == Some(&account_id) {
-                            cfg.proxy.preferred_account_id = None;
-                            let _ = crate::modules::config::save_app_config(&cfg);
-                        }
-                    }
-                }
-            }
-
-            instance
-                .token_manager
-                .reload_account(&account_id)
-                .await
-                .map_err(|e| format!("同步账号失败: {}", e))?;
-        }
-    }
+    // 4. 如果反代服务正在运行,重新加载账号池
+    let _ = crate::commands::proxy::reload_proxy_accounts(proxy_state).await;
 
     // 5. 更新托盘菜单
     crate::modules::tray::update_tray_menus(&app);
@@ -887,7 +783,6 @@ pub async fn warm_up_account(account_id: String) -> Result<String, String> {
 /// 更新账号自定义标签
 #[tauri::command]
 pub async fn update_account_label(account_id: String, label: String) -> Result<(), String> {
-    // 验证标签长度（按字符数计算，支持中文）
     if label.chars().count() > 15 {
         return Err("标签长度不能超过15个字符".to_string());
     }
@@ -898,7 +793,6 @@ pub async fn update_account_label(account_id: String, label: String) -> Result<(
         if label.is_empty() { "无" } else { &label }
     ));
 
-    // 1. 读取账号文件
     let data_dir = modules::account::get_data_dir()?;
     let account_path = data_dir
         .join("accounts")
@@ -914,14 +808,12 @@ pub async fn update_account_label(account_id: String, label: String) -> Result<(
     let mut account_json: serde_json::Value =
         serde_json::from_str(&content).map_err(|e| format!("解析账号文件失败: {}", e))?;
 
-    // 2. 更新 custom_label 字段
     if label.is_empty() {
         account_json["custom_label"] = serde_json::Value::Null;
     } else {
         account_json["custom_label"] = serde_json::Value::String(label.clone());
     }
 
-    // 3. 保存到磁盘
     let json_str = serde_json::to_string_pretty(&account_json)
         .map_err(|e| format!("序列化账号数据失败: {}", e))?;
     std::fs::write(&account_path, json_str).map_err(|e| format!("写入账号文件失败: {}", e))?;
@@ -935,6 +827,50 @@ pub async fn update_account_label(account_id: String, label: String) -> Result<(
             label
         }
     ));
+
+    Ok(())
+}
+
+/// 更新账号 project_id
+#[tauri::command]
+pub async fn update_account_project_id(
+    account_id: String,
+    project_id: String,
+) -> Result<(), String> {
+    let project_id = project_id.trim().to_string();
+
+    modules::logger::log_info(&format!(
+        "更新账号 project_id: {} -> {:?}",
+        account_id,
+        if project_id.is_empty() { "空" } else { &project_id }
+    ));
+
+    let data_dir = modules::account::get_data_dir()?;
+    let account_path = data_dir
+        .join("accounts")
+        .join(format!("{}.json", account_id));
+
+    if !account_path.exists() {
+        return Err(format!("账号文件不存在: {}", account_id));
+    }
+
+    let content =
+        std::fs::read_to_string(&account_path).map_err(|e| format!("读取账号文件失败: {}", e))?;
+
+    let mut account_json: serde_json::Value =
+        serde_json::from_str(&content).map_err(|e| format!("解析账号文件失败: {}", e))?;
+
+    if project_id.is_empty() {
+        account_json["token"]["project_id"] = serde_json::Value::Null;
+    } else {
+        account_json["token"]["project_id"] = serde_json::Value::String(project_id.clone());
+    }
+
+    let json_str = serde_json::to_string_pretty(&account_json)
+        .map_err(|e| format!("序列化账号数据失败: {}", e))?;
+    std::fs::write(&account_path, json_str).map_err(|e| format!("写入账号文件失败: {}", e))?;
+
+    crate::proxy::server::trigger_account_reload(&account_id);
 
     Ok(())
 }
@@ -961,7 +897,9 @@ pub async fn save_http_api_settings(
 // Token Statistics Commands
 // ============================================================================
 
-pub use crate::modules::token_stats::{AccountTokenStats, TokenStatsAggregated, TokenStatsSummary};
+pub use crate::modules::token_stats::{
+    TokenStatsAggregated, AccountTokenStats, TokenStatsSummary
+};
 
 #[tauri::command]
 pub async fn get_token_stats_hourly(hours: i64) -> Result<Vec<TokenStatsAggregated>, String> {
@@ -989,36 +927,26 @@ pub async fn get_token_stats_summary(hours: i64) -> Result<TokenStatsSummary, St
 }
 
 #[tauri::command]
-pub async fn get_token_stats_by_model(
-    hours: i64,
-) -> Result<Vec<crate::modules::token_stats::ModelTokenStats>, String> {
+pub async fn get_token_stats_by_model(hours: i64) -> Result<Vec<crate::modules::token_stats::ModelTokenStats>, String> {
     crate::modules::token_stats::get_model_stats(hours)
 }
 
 #[tauri::command]
-pub async fn get_token_stats_model_trend_hourly(
-    hours: i64,
-) -> Result<Vec<crate::modules::token_stats::ModelTrendPoint>, String> {
+pub async fn get_token_stats_model_trend_hourly(hours: i64) -> Result<Vec<crate::modules::token_stats::ModelTrendPoint>, String> {
     crate::modules::token_stats::get_model_trend_hourly(hours)
 }
 
 #[tauri::command]
-pub async fn get_token_stats_model_trend_daily(
-    days: i64,
-) -> Result<Vec<crate::modules::token_stats::ModelTrendPoint>, String> {
+pub async fn get_token_stats_model_trend_daily(days: i64) -> Result<Vec<crate::modules::token_stats::ModelTrendPoint>, String> {
     crate::modules::token_stats::get_model_trend_daily(days)
 }
 
 #[tauri::command]
-pub async fn get_token_stats_account_trend_hourly(
-    hours: i64,
-) -> Result<Vec<crate::modules::token_stats::AccountTrendPoint>, String> {
+pub async fn get_token_stats_account_trend_hourly(hours: i64) -> Result<Vec<crate::modules::token_stats::AccountTrendPoint>, String> {
     crate::modules::token_stats::get_account_trend_hourly(hours)
 }
 
 #[tauri::command]
-pub async fn get_token_stats_account_trend_daily(
-    days: i64,
-) -> Result<Vec<crate::modules::token_stats::AccountTrendPoint>, String> {
+pub async fn get_token_stats_account_trend_daily(days: i64) -> Result<Vec<crate::modules::token_stats::AccountTrendPoint>, String> {
     crate::modules::token_stats::get_account_trend_daily(days)
 }

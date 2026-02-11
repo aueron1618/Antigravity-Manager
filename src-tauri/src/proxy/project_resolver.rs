@@ -28,13 +28,19 @@ pub async fn fetch_project_id(access_token: &str) -> Result<String, String> {
     });
 
     let client = crate::utils::http::get_client();
-    let response = client
+    let mut request = client
         .post(&url)
         .bearer_auth(access_token)
         // .header("Host", "cloudcode-pa.googleapis.com") // 移除 Host header，因为已切换域名
         .header("User-Agent", crate::constants::USER_AGENT.as_str())
         .header("Content-Type", "application/json")
-        .json(&request_body)
+        .json(&request_body);
+
+    if let Some(host) = crate::proxy::config::resolve_endpoint_proxy_host_header() {
+        request = request.header(reqwest::header::HOST, host);
+    }
+
+    let response = request
         .send()
         .await
         .map_err(|e| format!("loadCodeAssist 请求失败: {}", e))?;

@@ -1,15 +1,15 @@
-mod commands;
-pub mod constants;
-pub mod error;
 mod models;
 mod modules;
-mod proxy; // Proxy service module
+mod commands;
 mod utils;
+mod proxy;  // Proxy service module
+pub mod error;
+pub mod constants;
 
-use modules::logger;
-use std::sync::Arc;
 use tauri::Manager;
-use tracing::{error, info, warn};
+use modules::logger;
+use tracing::{info, warn, error};
+use std::sync::Arc;
 
 /// Increase file descriptor limit for macOS to prevent "Too many open files" errors
 #[cfg(target_os = "macos")]
@@ -21,10 +21,7 @@ fn increase_nofile_limit() {
         };
 
         if libc::getrlimit(libc::RLIMIT_NOFILE, &mut rl) == 0 {
-            info!(
-                "Current open file limit: soft={}, hard={}",
-                rl.rlim_cur, rl.rlim_max
-            );
+            info!("Current open file limit: soft={}, hard={}", rl.rlim_cur, rl.rlim_max);
 
             // Attempt to increase to 4096 or maximum hard limit
             let target = 4096.min(rl.rlim_max);
@@ -68,7 +65,7 @@ pub fn run() {
     if let Err(e) = modules::security_db::init_db() {
         error!("Failed to initialize security database: {}", e);
     }
-
+    
     // Initialize user token database
     if let Err(e) = modules::user_token_db::init_db() {
         error!("Failed to initialize user token database: {}", e);
@@ -80,20 +77,6 @@ pub fn run() {
         let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
         rt.block_on(async {
             // Initialize states manually
-            // [FIX] Initialize log bridge for headless mode
-            // Pass a dummy app handle or None since we don't have a Tauri app handle in headless mode
-            // Actually log_bridge relies on AppHandle to emit events.
-            // In headless mode, we don't emit events, but we still need the buffer.
-            // We need to modify log_bridge to handle missing AppHandle gracefully, which it already does (Option).
-            // But init_log_bridge requires AppHandle.
-            // We'll skip passing AppHandle for now and just leverage the global buffer capability.
-            // Since init_log_bridge takes AppHandle, we might need a separate init for headless or just not call init and rely on lazy init of buffer?
-            // Checking log_bridge code again...
-            // "static LOG_BUFFER: OnceLock<...> = OnceLock::new();" -> lazy init.
-            // So we just need to ensure the tracing layer is added.
-            // And `logger::init_logger()` adds the layer?
-            // Let's check `modules::logger`.
-
             let proxy_state = commands::proxy::ProxyServiceState::new();
             let cf_state = Arc::new(commands::cloudflared::CloudflaredState::new());
 
@@ -101,25 +84,8 @@ pub fn run() {
             match modules::config::load_app_config() {
                 Ok(mut config) => {
                     let mut modified = false;
-                    // Headless/docker 默认允许 LAN 访问（绑定 0.0.0.0）
-                    // 若设置 ABV_BIND_LOCAL_ONLY，则仅绑定 127.0.0.1
-                    let bind_local_only = std::env::var("ABV_BIND_LOCAL_ONLY")
-                        .map(|v| matches!(v.to_lowercase().as_str(), "1" | "true" | "yes" | "on"))
-                        .unwrap_or(false);
-                    if bind_local_only {
-                        config.proxy.allow_lan_access = false;
-                        modified = true;
-                    } else {
-                        config.proxy.allow_lan_access = true;
-                    }
-
-                    // [FIX] Force auth mode to AllExceptHealth in headless mode if it's Off or Auto
-                    // This ensures Web UI login validation works properly
-                    if matches!(config.proxy.auth_mode, crate::proxy::ProxyAuthMode::Off | crate::proxy::ProxyAuthMode::Auto) {
-                        info!("Headless mode: Forcing auth_mode to AllExceptHealth for Web UI security");
-                        config.proxy.auth_mode = crate::proxy::ProxyAuthMode::AllExceptHealth;
-                        modified = true;
-                    }
+                    // Force LAN access in headless/docker mode so it binds to 0.0.0.0
+                    config.proxy.allow_lan_access = true;
 
                     // [NEW] 支持通过环境变量注入 API Key
                     // 优先级：ABV_API_KEY > API_KEY > 配置文件
@@ -237,13 +203,13 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            let _ = app.get_webview_window("main").map(|window| {
-                let _ = window.show();
-                let _ = window.set_focus();
-                #[cfg(target_os = "macos")]
-                app.set_activation_policy(tauri::ActivationPolicy::Regular)
-                    .unwrap_or(());
-            });
+            let _ = app.get_webview_window("main")
+                .map(|window| {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                    #[cfg(target_os = "macos")]
+                    app.set_activation_policy(tauri::ActivationPolicy::Regular).unwrap_or(());
+                });
         }))
         .manage(commands::proxy::ProxyServiceState::new())
         .manage(commands::cloudflared::CloudflaredState::new())
@@ -285,8 +251,7 @@ pub fn run() {
                 if let Ok(config) = modules::config::load_app_config() {
                     let state = handle.state::<commands::proxy::ProxyServiceState>();
                     let cf_state = handle.state::<commands::cloudflared::CloudflaredState>();
-                    let integration =
-                        crate::modules::integration::SystemManager::Desktop(handle.clone());
+                    let integration = crate::modules::integration::SystemManager::Desktop(handle.clone());
 
                     // 1. 确保管理后台开启
                     if let Err(e) = commands::proxy::ensure_admin_server(
@@ -294,15 +259,10 @@ pub fn run() {
                         &state,
                         integration.clone(),
                         Arc::new(cf_state.inner().clone()),
-                    )
-                    .await
-                    {
+                    ).await {
                         error!("Failed to start admin server: {}", e);
                     } else {
-                        info!(
-                            "Admin server (port {}) started successfully",
-                            config.proxy.port
-                        );
+                        info!("Admin server (port {}) started successfully", config.proxy.port);
                     }
 
                     // 2. 自动启动转发逻辑
@@ -312,9 +272,7 @@ pub fn run() {
                             &state,
                             integration,
                             Arc::new(cf_state.inner().clone()),
-                        )
-                        .await
-                        {
+                        ).await {
                             error!("Failed to auto-start proxy service: {}", e);
                         } else {
                             info!("Proxy service auto-started successfully");
@@ -325,10 +283,7 @@ pub fn run() {
 
             // Start smart scheduler
             let scheduler_state = app.handle().state::<commands::proxy::ProxyServiceState>();
-            modules::scheduler::start_scheduler(
-                Some(app.handle().clone()),
-                scheduler_state.inner().clone(),
-            );
+            modules::scheduler::start_scheduler(Some(app.handle().clone()), scheduler_state.inner().clone());
 
             // [PHASE 1] 已整合至 Axum 端口 (8045)，不再单独启动 19527 端口
             info!("Management API integrated into main proxy server (port 8045)");
@@ -341,10 +296,7 @@ pub fn run() {
                 #[cfg(target_os = "macos")]
                 {
                     use tauri::Manager;
-                    window
-                        .app_handle()
-                        .set_activation_policy(tauri::ActivationPolicy::Accessory)
-                        .unwrap_or(());
+                    window.app_handle().set_activation_policy(tauri::ActivationPolicy::Accessory).unwrap_or(());
                 }
                 api.prevent_close();
             }
@@ -399,8 +351,6 @@ pub fn run() {
             commands::get_antigravity_path,
             commands::get_antigravity_args,
             commands::check_for_updates,
-            commands::check_homebrew_installation,
-            commands::brew_upgrade_cask,
             commands::get_update_settings,
             commands::save_update_settings,
             commands::should_check_updates,
@@ -424,8 +374,6 @@ pub fn run() {
             commands::proxy::generate_api_key,
             commands::proxy::reload_proxy_accounts,
             commands::proxy::update_model_mapping,
-            commands::proxy::check_proxy_health,
-            commands::proxy::get_proxy_pool_config,
             commands::proxy::fetch_zai_models,
             commands::proxy::get_proxy_scheduling_config,
             commands::proxy::update_proxy_scheduling_config,
@@ -434,12 +382,6 @@ pub fn run() {
             commands::proxy::get_preferred_account,
             commands::proxy::clear_proxy_rate_limit,
             commands::proxy::clear_all_proxy_rate_limits,
-            commands::proxy::check_proxy_health,
-            // Proxy Pool Binding commands
-            commands::proxy_pool::bind_account_proxy,
-            commands::proxy_pool::unbind_account_proxy,
-            commands::proxy_pool::get_account_proxy_binding,
-            commands::proxy_pool::get_all_account_bindings,
             // Autostart commands
             commands::autostart::toggle_auto_launch,
             commands::autostart::is_auto_launch_enabled,
@@ -447,6 +389,7 @@ pub fn run() {
             commands::warm_up_all_accounts,
             commands::warm_up_account,
             commands::update_account_label,
+            commands::update_account_project_id,
             // HTTP API settings commands
             commands::get_http_api_settings,
             commands::save_http_api_settings,
@@ -465,14 +408,6 @@ pub fn run() {
             proxy::cli_sync::execute_cli_sync,
             proxy::cli_sync::execute_cli_restore,
             proxy::cli_sync::get_cli_config_content,
-            proxy::opencode_sync::get_opencode_sync_status,
-            proxy::opencode_sync::execute_opencode_sync,
-            proxy::opencode_sync::execute_opencode_restore,
-            proxy::opencode_sync::get_opencode_config_content,
-            proxy::droid_sync::get_droid_sync_status,
-            proxy::droid_sync::execute_droid_sync,
-            proxy::droid_sync::execute_droid_restore,
-            proxy::droid_sync::get_droid_config_content,
             // Security/IP monitoring commands
             commands::security::get_ip_access_logs,
             commands::security::get_ip_stats,
@@ -518,30 +453,23 @@ pub fn run() {
                 // Handle app exit - cleanup background tasks
                 tauri::RunEvent::Exit => {
                     tracing::info!("Application exiting, cleaning up background tasks...");
-                    if let Some(state) =
-                        app_handle.try_state::<crate::commands::proxy::ProxyServiceState>()
-                    {
+                    if let Some(state) = app_handle.try_state::<crate::commands::proxy::ProxyServiceState>() {
                         tauri::async_runtime::block_on(async {
                             // Use timeout-based read() instead of try_read() to handle lock contention
                             match tokio::time::timeout(
                                 std::time::Duration::from_secs(3),
-                                state.instance.read(),
-                            )
-                            .await
-                            {
+                                state.instance.read()
+                            ).await {
                                 Ok(guard) => {
                                     if let Some(instance) = guard.as_ref() {
                                         // Use graceful_shutdown with 2s timeout for task cleanup
-                                        instance
-                                            .token_manager
+                                        instance.token_manager
                                             .graceful_shutdown(std::time::Duration::from_secs(2))
                                             .await;
                                     }
                                 }
                                 Err(_) => {
-                                    tracing::warn!(
-                                        "Lock acquisition timed out after 3s, forcing exit"
-                                    );
+                                    tracing::warn!("Lock acquisition timed out after 3s, forcing exit");
                                 }
                             }
                         });
@@ -554,9 +482,7 @@ pub fn run() {
                         let _ = window.show();
                         let _ = window.unminimize();
                         let _ = window.set_focus();
-                        app_handle
-                            .set_activation_policy(tauri::ActivationPolicy::Regular)
-                            .unwrap_or(());
+                        app_handle.set_activation_policy(tauri::ActivationPolicy::Regular).unwrap_or(());
                     }
                 }
                 _ => {}

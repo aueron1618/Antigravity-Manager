@@ -31,6 +31,7 @@ interface AccountState {
     warmUpAccounts: () => Promise<string>;
     warmUpAccount: (accountId: string) => Promise<string>;
     updateAccountLabel: (accountId: string, label: string) => Promise<void>;
+    updateAccountProjectId: (accountId: string, projectId: string) => Promise<void>;
 }
 
 export const useAccountStore = create<AccountState>((set, get) => ({
@@ -307,6 +308,22 @@ export const useAccountStore = create<AccountState>((set, get) => ({
             set({ accounts: updatedAccounts });
         } catch (error) {
             console.error('[AccountStore] Update label failed:', error);
+            throw error;
+        }
+    },
+
+    updateAccountProjectId: async (accountId: string, projectId: string) => {
+        try {
+            await accountService.updateAccountProjectId(accountId, projectId);
+            const { accounts } = get();
+            const updatedAccounts = accounts.map(acc =>
+                acc.id === accountId
+                    ? { ...acc, token: { ...acc.token, project_id: projectId || undefined } }
+                    : acc
+            );
+            set({ accounts: updatedAccounts });
+        } catch (error) {
+            console.error('[AccountStore] Update project_id failed:', error);
             throw error;
         }
     },

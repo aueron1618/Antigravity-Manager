@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use url::Url;
 // use std::path::PathBuf;
 use std::collections::HashMap;
 use std::sync::{OnceLock, RwLock};
@@ -18,6 +19,35 @@ pub fn normalize_proxy_url(url: &str) -> String {
     } else {
         url.to_string()
     }
+}
+
+pub fn resolve_endpoint_proxy_host_header() -> Option<String> {
+    let cfg = get_endpoint_proxy_config();
+    if !cfg.enabled {
+        return None;
+    }
+
+    let raw = cfg.host.as_ref()?.trim();
+    if raw.is_empty() {
+        return None;
+    }
+
+    let candidate = if raw.contains("://") {
+        raw.to_string()
+    } else {
+        format!("https://{}", raw)
+    };
+
+    if let Ok(url) = Url::parse(&candidate) {
+        if let Some(host) = url.host_str() {
+            if let Some(port) = url.port() {
+                return Some(format!("{}:{}", host, port));
+            }
+            return Some(host.to_string());
+        }
+    }
+
+    Some(raw.to_string())
 }
 
 // ============================================================================
@@ -242,27 +272,41 @@ pub fn update_endpoint_proxy_config(config: EndpointProxyConfig) {
         if let Ok(mut cfg) = lock.write() {
             *cfg = config.clone();
             tracing::info!(
-                "[Endpoint-Proxy] Global config updated: enabled={}, base_urls={} load_code_assist={}",
+                "[Endpoint-Proxy] Global config updated: enabled={}, base_urls={} load_code_assist={} oauth_url={} googleapis_url={} host={}",
                 config.enabled,
                 config.base_urls.len(),
                 config
                     .load_code_assist_url
                     .as_ref()
                     .map(|s| s.len())
-                    .unwrap_or(0)
+                    .unwrap_or(0),
+                config.oauth_url.as_ref().map(|s| s.len()).unwrap_or(0),
+                config
+                    .googleapis_url
+                    .as_ref()
+                    .map(|s| s.len())
+                    .unwrap_or(0),
+                config.host.as_ref().map(|s| s.len()).unwrap_or(0)
             );
         }
     } else {
         let _ = GLOBAL_ENDPOINT_PROXY_CONFIG.set(RwLock::new(config.clone()));
         tracing::info!(
-            "[Endpoint-Proxy] Global config initialized: enabled={}, base_urls={} load_code_assist={}",
+            "[Endpoint-Proxy] Global config initialized: enabled={}, base_urls={} load_code_assist={} oauth_url={} googleapis_url={} host={}",
             config.enabled,
             config.base_urls.len(),
             config
                 .load_code_assist_url
                 .as_ref()
                 .map(|s| s.len())
-                .unwrap_or(0)
+                .unwrap_or(0),
+            config.oauth_url.as_ref().map(|s| s.len()).unwrap_or(0),
+            config
+                .googleapis_url
+                .as_ref()
+                .map(|s| s.len())
+                .unwrap_or(0),
+            config.host.as_ref().map(|s| s.len()).unwrap_or(0)
         );
     }
 }
@@ -585,6 +629,15 @@ pub struct EndpointProxyConfig {
     /// loadCodeAssist 端点 (可选)
     #[serde(default)]
     pub load_code_assist_url: Option<String>,
+    /// OAuth 端点基础地址 (可选)
+    #[serde(default)]
+    pub oauth_url: Option<String>,
+    /// Google APIs 端点基础地址 (可选)
+    #[serde(default)]
+    pub googleapis_url: Option<String>,
+    /// 上游 Host header 覆盖 (可选)
+    #[serde(default)]
+    pub host: Option<String>,
 }
 
 impl Default for EndpointProxyConfig {
@@ -593,6 +646,9 @@ impl Default for EndpointProxyConfig {
             enabled: false,
             base_urls: Vec::new(),
             load_code_assist_url: None,
+            oauth_url: None,
+            googleapis_url: None,
+            host: None,
         }
     }
 }

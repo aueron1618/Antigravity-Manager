@@ -37,12 +37,6 @@
         "tauri_api_not_loaded": "Tauri API not loaded, please restart the app",
         "environment_error": "Environment error: {{error}}",
         "submit": "Submit",
-        "update": "Update",
-        "load_failed": "Load failed",
-        "create_success": "Created successfully",
-        "update_success": "Updated successfully",
-        "delete_success": "Deleted successfully",
-        "copied": "Copied to clipboard",
         "retry": "Retry",
         "back": "Back"
     },
@@ -78,9 +72,7 @@
         "switch_to_spanish": "Switch to Spanish",
         "switch_to_spanish_short": "ES",
         "switch_to_malay": "Switch to Malay",
-        "switch_to_malay_short": "MY",
-        "user_token": "User Tokens",
-        "logout": "Logout"
+        "switch_to_malay_short": "MY"
     },
     "dashboard": {
         "hello": "Hello, User 👋",
@@ -126,6 +118,10 @@
         "edit_label": "Edit Label",
         "custom_label_placeholder": "Enter custom label",
         "label_updated": "Label updated",
+        "edit_project_id": "Edit Project ID",
+        "project_id": "Project ID",
+        "project_id_placeholder": "Enter Project ID",
+        "project_id_updated": "Project ID updated",
         "add_account": "Add Account",
         "refresh_all": "Refresh All",
         "refresh_selected": "Refresh ({{count}})",
@@ -203,9 +199,7 @@
         "warmup_batch_triggered": "Warmup tasks triggered for {{count}} accounts",
         "quota_protected": "Protected",
         "details": {
-            "title": "Quota Details",
-            "model_quota": "Model Quota",
-            "protected_models": "Protected Models"
+            "title": "Quota Details"
         },
         "toast": {
             "proxy_enabled": "Enabled proxy for {{count}} accounts",
@@ -336,7 +330,7 @@
             "refresh_interval": "Refresh Interval (minutes)",
             "auto_sync": "Auto Sync Current Account",
             "auto_sync_desc": "Automatically sync current active account information periodically",
-            "sync_interval": "Sync Interval (minutes)"
+            "sync_interval": "Sync Interval (seconds)"
         },
         "warmup": {
             "title": "Smart Warmup",
@@ -359,59 +353,6 @@
         },
         "proxy": {
             "title": "Proxy Settings"
-        },
-        "proxy_pool": {
-            "title": "Proxy Pool",
-            "strategy_priority": "Priority",
-            "strategy_round_robin": "Round Robin",
-            "strategy_random": "Random",
-            "strategy_least_connections": "Least Connections",
-            "test_all": "Test All",
-            "batch_import": "Import",
-            "binding_manager": "Bindings",
-            "add_proxy": "Add Proxy",
-            "edit_proxy": "Edit Proxy",
-            "name": "Name",
-            "url": "Proxy URL",
-            "username": "Username",
-            "password": "Password",
-            "max_accounts": "Max Accounts",
-            "max_accounts_hint": "0 = Unlimited",
-            "priority": "Priority",
-            "priority_hint": "Lower is better",
-            "health_check_url": "Health Check URL",
-            "tags": "Tags",
-            "add_tag_placeholder": "Add tag...",
-            "seconds": "Sec",
-            "test_completed": "Health check completed",
-            "test_failed": "Health check failed",
-            "confirm_delete": "Are you sure you want to delete this proxy?",
-            "empty": "No proxies available",
-            "column_priority": "Priority",
-            "column_status": "Status",
-            "column_details": "Proxy Details",
-            "column_bindings": "Bindings",
-            "import_title": "Batch Import Proxies",
-            "import_label": "Paste Proxy List (One per line)",
-            "import_hint": "Supported formats: protocol://user:pass@host:port, host:port:user:pass",
-            "import_preview": "Preview",
-            "import_confirm": "Import {{count}} Proxies",
-            "no_valid_proxies": "No valid proxies found",
-            "binding": {
-                "title": "Account Proxy Bindings",
-                "load_failed": "Failed to load bindings",
-                "unbind_success": "Unbound successfully",
-                "bind_success": "Bound successfully",
-                "update_failed": "Failed to update binding",
-                "assigned_proxy": "Assigned Proxy",
-                "default_strategy": "Default (Follow Strategy)"
-            },
-            "status": {
-                "inactive": "Inactive",
-                "checking": "Checking",
-                "healthy": "Healthy",
-                "timeout": "Timeout"
-            }
         },
         "advanced": {
             "title": "Advanced Settings",
@@ -451,12 +392,6 @@
             "clear_cache_confirm_msg": "The following cache directories will be cleared:",
             "cache_cleared_success": "Cache cleared successfully, freed {{size}} MB",
             "cache_not_found": "No Antigravity cache directories found",
-            "debug_logs_title": "Debug Logging",
-            "debug_logs_enable_desc": "When enabled, records the complete request and response chain. Recommended to enable only when troubleshooting issues.",
-            "debug_logs_desc": "Records the full chain: original input, transformed v1internal request, and upstream response. For troubleshooting only, may contain sensitive data.",
-            "debug_log_dir": "Debug Log Output Directory",
-            "debug_log_dir_hint": "Leave empty to use the default directory: {{path}}/debug_logs",
-            "debug_log_dir_select": "Select Debug Log Output Directory",
             "http_api_title": "HTTP API Service",
             "http_api_desc": "Provides local HTTP interface for external programs (e.g. VS Code plugins).",
             "http_api_enabled": "Enable HTTP API",
@@ -478,15 +413,7 @@
             "console_title": "Debug Console",
             "console_desc": "View real-time application logs to troubleshoot issues.",
             "enable_desc": "Enable to capture and display backend logs.",
-            "open_btn": "Open Console",
-            "debug_logging": "Debug Logging",
-            "debug_logging_desc": "When enabled, records the complete request and response chain. Recommended to enable only when troubleshooting issues."
-        },
-        "menu": {
-            "title": "Menu Display Settings",
-            "desc": "Select the function items to display in the menu bar. Hiding infrequently used menus can save space.",
-            "selected_items_note": "Selected items will be displayed in the top menu bar.",
-            "required": "Required"
+            "open_btn": "Open Console"
         },
         "about": {
             "title": "About",
@@ -502,22 +429,6 @@
             "latest_version": "You're up to date",
             "new_version_available": "New version {{version}} available",
             "download_update": "Download",
-            "brew_upgrade": "Update via Homebrew",
-            "brew_upgrading": "Upgrading...",
-            "brew_confirm_title": "Update via Homebrew",
-            "brew_confirm_desc": "The following command will be executed to update the app. A restart is required after the upgrade.",
-            "brew_quarantine_hint": "If you see an \"App is damaged\" error after update, run in terminal:",
-            "brew_confirm_btn": "Start Update",
-            "brew_success_title": "Upgrade Complete",
-            "brew_upgrade_success": "Homebrew upgrade succeeded. Please restart the app to load the new version.",
-            "brew_restart_btn": "Restart Now",
-            "brew_restart_failed": "Auto restart failed. Please close and reopen the app manually",
-            "brew_upgrade_failed": "Homebrew upgrade failed. Try running manually: brew upgrade --cask antigravity-tools",
-            "brew_error_brew_not_found": "Homebrew not found. Please ensure brew is installed",
-            "brew_error_brew_exec_failed": "Failed to execute brew command. Try running manually in terminal",
-            "brew_error_brew_timeout": "Homebrew upgrade timed out (3min). Try running manually: brew upgrade --cask antigravity-tools",
-            "brew_error_brew_already_latest": "Already up to date, no upgrade needed",
-            "brew_error_brew_not_supported": "Homebrew update is not supported on this platform",
             "update_check_failed": "Update check failed",
             "support_btn": "Support Author",
             "support_title": "Donation & Support",
@@ -526,40 +437,24 @@
             "support_wechat": "WeChat Pay",
             "support_buymeacoffee": "Buy Me a Coffee"
         },
-        "advanced_thinking": {
-            "title": "Advanced Thinking & Global Config",
-            "description": "Manage thinking capabilities, image modes, and global instructions."
-        },
         "thinking_budget": {
             "title": "Thinking Budget",
             "description": "Controls the token budget for AI deep thinking. Some models (e.g., Flash, -thinking suffix models) are limited to 24576 by upstream API.",
             "mode_label": "Processing Mode",
             "mode": {
                 "auto": "Auto Limit",
+                "auto_desc": "Smart limit",
                 "passthrough": "Passthrough",
-                "custom": "Custom"
+                "passthrough_desc": "No limit",
+                "custom": "Custom",
+                "custom_desc": "Fixed value"
             },
-            "auto_hint": "Auto mode: Automatically caps budget to 24576 for Flash, -thinking suffix models, and Web Search requests.",
-            "passthrough_warning": "Passthrough: Uses caller's value directly. High values may cause failures.",
-            "custom_value_hint": "Rec: 24576 (Flash) or 51200 (Extended)",
+            "auto_hint": "Auto mode: Automatically caps budget to 24576 for Flash models, -thinking suffix models, and Web Search requests to avoid API errors. Other models retain original request values.",
+            "passthrough_warning": "Passthrough mode: Uses the caller's thinking_budget value directly without any limits. May cause request failures if upstream API doesn't support high values.",
+            "custom_value_label": "Custom Value",
+            "custom_value_hint": "Range: 1024 - 65536. Recommended: 24576 (Flash limit) or 51200 (standard extended thinking).",
+            "high_value_warning": "Current value exceeds 24576. Some models (Flash, -thinking) may not support this and requests may fail.",
             "tokens": "tokens"
-        },
-        "image_thinking_mode": {
-            "title": "Image Thinking Mode",
-            "hint": "Affects quality and generation flow",
-            "options": {
-                "enabled": "Enabled",
-                "disabled": "Disabled",
-                "enabled_desc": "On: Preserves thinking chain, returns sketch + final image.",
-                "disabled_desc": "Off: Disables thinking chain, generates single ultra-clear image (Quality First)."
-            }
-        },
-        "global_system_prompt": {
-            "title": "Global System Prompt",
-            "hint": "Automatically injected into all systemInstructions",
-            "placeholder": "Enter global system prompt...\nExample: You are a senior full-stack developer. Please respond in English.",
-            "char_count": "{{count}} characters",
-            "long_prompt_warning": "Prompt is quite long (over 2000 chars) and may consume significant context space."
         },
         "branding": {
             "title": "Antigravity Tools",
@@ -709,12 +604,10 @@
             "upstream_proxy": {
                 "title": "Global Upstream Proxy (Global Proxy)",
                 "desc": "When enabled, all external requests (API Proxy, Token Refresh, Quota Check, Update Check) will be routed through this proxy.",
-                "desc_short": "Fallback proxy used when no suitable proxy is found in the pool.",
                 "enable": "Enable Upstream Proxy",
                 "url": "Proxy URL",
                 "url_placeholder": "e.g. http://127.0.0.1:7890 or socks5://127.0.0.1:7890",
                 "tip": "Supports HTTP, HTTPS and SOCKS5.",
-                "socks5h_hint": "To bypass upstream risk control and use Remote DNS resolution, manually change the protocol to socks5h://",
                 "validation_error": "Proxy URL is required when upstream proxy is enabled",
                 "restart_hint": "Proxy settings saved. Restart the app to apply changes."
             },
@@ -761,49 +654,6 @@
                 "context_compression_threshold_l2_tooltip": "Compresses early thinking blocks while preserving signatures. Recommended: 0.55 (55%)",
                 "context_compression_threshold_l3": "L3 Compression Threshold (Summary Pivot)",
                 "context_compression_threshold_l3_tooltip": "Ultimate reset: generates an XML state summary and pivots to a fresh session. Most token-efficient. Recommended: 0.7 (70%)"
-            },
-            "opencode_sync": {
-                "card_title": "OpenCode",
-                "status": {
-                    "detecting": "Detecting...",
-                    "installed": "Installed ({{version}})",
-                    "not_installed": "Not Installed",
-                    "synced": "Synced",
-                    "not_synced": "Not Synced",
-                    "current_base_url": "Current Base URL"
-                },
-                "sync_accounts": "Sync accounts to antigravity-accounts.json",
-                "btn_sync": "Sync Config",
-                "btn_view": "View Config",
-                "btn_restore": "Restore",
-                "btn_restore_backup": "Restore Backup",
-                "toast": {
-                    "config_missing": "Please generate API Key and start service first",
-                    "sync_success": "OpenCode config synced successfully",
-                    "sync_error": "OpenCode sync failed: {{error}}"
-                },
-                "modal": {
-                    "view_title": "OpenCode Config Viewer",
-                    "copy_success": "Config copied"
-                },
-                "sync_confirm_title": "Confirm Sync",
-                "sync_confirm_message": "OpenCode config will be overwritten based on current proxy settings. Continue?",
-                "restore_confirm": "Are you sure you want to restore OpenCode to default settings?",
-                "restore_backup_confirm": "Are you sure you want to restore OpenCode config from backup?",
-                "modal_title": "Select OpenCode Models",
-                "select_models": "Select models to sync",
-                "btn_confirm_sync": "Confirm Sync"
-            },
-            "droid_sync": {
-                "modal_title": "Add models to Droid",
-                "modal_desc": "Selected models will be added as customModels to settings.json",
-                "selected": "selected",
-                "btn_confirm_sync": "Add selected models",
-                "toast": {
-                    "no_models_selected": "Please select at least one model",
-                    "sync_success_count": "Added {{count}} model(s) to Droid",
-                    "sync_error": "Sync failed: {{error}}"
-                }
             }
         },
         "cloudflared": {
@@ -956,8 +806,8 @@
             "gemini3_option_flash": "gemini-3-flash (Fast)",
             "groups": {
                 "claude_45": {
-                    "name": "Claude 4.6 TK Series",
-                    "desc": "Opus 4.6 TK (Thinking)"
+                    "name": "Claude 4.5 Series",
+                    "desc": "Opus 4.5, Sonnet 4.5"
                 },
                 "claude_35": {
                     "name": "Claude 3.5 Series",
@@ -978,8 +828,6 @@
             },
             "expert_title": "Expert Custom Routing",
             "expert_subtitle": "Precise matching for any original model ID.",
-            "custom_mapping_tip": "💡 Supports manual input of any model ID to experience unreleased models (e.g. claude-opus-4-6).",
-            "custom_mapping_warning": "Note: Not all accounts support unreleased models.",
             "money_saving_tip": "💰 Cost-saving tip:",
             "haiku_optimization_tip": "Claude CLI uses {{model}} for background tasks by default. Map it to a cheaper Flash model to save ~95% costs",
             "haiku_optimization_btn": "Quick Optimize",
@@ -1032,7 +880,6 @@
                 "detecting": "Detecting...",
                 "current_base_url": "Current Base URL"
             },
-            "model_select": "Select Model",
             "btn_sync": "Sync Config Now",
             "btn_view": "View Config",
             "btn_restore": "Restore Defaults",
@@ -1139,23 +986,13 @@
     "update_notification": {
         "title": "New Version Available",
         "message": "A new version is ready with optimizations and improvements. Current: v{{current}}",
-        "ready": "Update Ready",
-        "downloading": "Downloading update...",
-        "restarting": "Restarting application...",
-        "auto_update": "Auto Update",
-        "toast": {
-            "not_ready": "Auto-update package is not ready, redirecting to download page...",
-            "failed": "Auto-update failed, redirecting to download page..."
-        }
+        "action": "Update Now"
     },
     "login": {
         "title": "Secure Access Control",
         "desc": "Running in Web mode. Please enter management password or API Key to access.",
         "placeholder": "Enter management password or API Key",
         "btn_login": "Verify and Enter",
-        "btn_verifying": "Verifying...",
-        "error_invalid_key": "Invalid password or API Key, please try again",
-        "error_network": "Network connection failed, please check if the service is running",
         "note": "Note: If a separate management password is set, please enter it; otherwise, enter API_KEY.",
         "lookup_hint": "If forgotten, run docker logs antigravity-manager to find Current API Key or Web UI Password",
         "config_hint": "Or run grep -E '\"api_key\"|\"admin_password\"' ~/.antigravity_tools/gui_config.json to view."
@@ -1303,7 +1140,6 @@
         "usage": "Usage",
         "ip_limit": "IP Limit",
         "created": "Created",
-        "today_requests": "Today Requests",
         "never": "Never",
         "renew": "Renew",
         "renew_button": "Renew",

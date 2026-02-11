@@ -279,6 +279,17 @@ impl UpstreamClient {
             }),
         );
 
+        if let Some(host) = crate::proxy::config::resolve_endpoint_proxy_host_header() {
+            match header::HeaderValue::from_str(&host) {
+                Ok(value) => {
+                    headers.insert(header::HOST, value);
+                }
+                Err(err) => {
+                    tracing::warn!("Invalid Host header override: {}", err);
+                }
+            }
+        }
+
         // 注入额外的 Headers (如 anthropic-beta)
         for (k, v) in extra_headers {
             if let Ok(hk) = header::HeaderName::from_bytes(k.as_bytes()) {

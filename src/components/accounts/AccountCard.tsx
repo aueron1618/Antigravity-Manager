@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowRightLeft, RefreshCw, Trash2, Download, Info, Lock, Ban, Diamond, Gem, Circle, ToggleLeft, ToggleRight, Fingerprint, Sparkles, Tag, X, Check } from 'lucide-react';
+import { ArrowRightLeft, RefreshCw, Trash2, Download, Info, Lock, Ban, Diamond, Gem, Circle, ToggleLeft, ToggleRight, Fingerprint, Sparkles, Tag, X, Check, Hash } from 'lucide-react';
 import { Account } from '../../types/account';
 import { cn } from '../../utils/cn';
 import { useTranslation } from 'react-i18next';
@@ -23,6 +23,7 @@ interface AccountCardProps {
     onToggleProxy: () => void;
     onWarmup?: () => void;
     onUpdateLabel?: (label: string) => void;
+    onUpdateProjectId?: (projectId: string) => void;
 }
 
 // 使用统一的模型配置
@@ -33,7 +34,7 @@ const DEFAULT_MODELS = Object.entries(MODEL_CONFIG).map(([id, config]) => ({
     Icon: config.Icon
 }));
 
-function AccountCard({ account, selected, onSelect, isCurrent: propIsCurrent, isRefreshing, isSwitching = false, onSwitch, onRefresh, onViewDetails, onExport, onDelete, onToggleProxy, onViewDevice, onWarmup, onUpdateLabel }: AccountCardProps) {
+function AccountCard({ account, selected, onSelect, isCurrent: propIsCurrent, isRefreshing, isSwitching = false, onSwitch, onRefresh, onViewDetails, onExport, onDelete, onToggleProxy, onViewDevice, onWarmup, onUpdateLabel, onUpdateProjectId }: AccountCardProps) {
     const { t } = useTranslation();
     const { config, showAllQuotas } = useConfigStore();
     const isDisabled = Boolean(account.disabled);
@@ -41,6 +42,8 @@ function AccountCard({ account, selected, onSelect, isCurrent: propIsCurrent, is
     // 自定义标签编辑状态
     const [isEditingLabel, setIsEditingLabel] = useState(false);
     const [labelInput, setLabelInput] = useState(account.custom_label || '');
+    const [isEditingProjectId, setIsEditingProjectId] = useState(false);
+    const [projectIdInput, setProjectIdInput] = useState(account.token.project_id || '');
 
     // Use the prop directly from parent component
     const isCurrent = propIsCurrent;
@@ -57,11 +60,33 @@ function AccountCard({ account, selected, onSelect, isCurrent: propIsCurrent, is
         setIsEditingLabel(false);
     };
 
+    const handleSaveProjectId = () => {
+        if (onUpdateProjectId) {
+            onUpdateProjectId(projectIdInput.trim());
+        }
+        setIsEditingProjectId(false);
+    };
+
+    const handleCancelProjectId = () => {
+        setProjectIdInput(account.token.project_id || '');
+        setIsEditingProjectId(false);
+    };
+
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter') {
-            handleSaveLabel();
+            if (isEditingLabel) {
+                handleSaveLabel();
+            }
+            if (isEditingProjectId) {
+                handleSaveProjectId();
+            }
         } else if (e.key === 'Escape') {
-            handleCancelLabel();
+            if (isEditingLabel) {
+                handleCancelLabel();
+            }
+            if (isEditingProjectId) {
+                handleCancelProjectId();
+            }
         }
     };
 
@@ -197,6 +222,15 @@ function AccountCard({ account, selected, onSelect, isCurrent: propIsCurrent, is
                                     {account.custom_label}
                                 </span>
                             )}
+                            {account.token.project_id && (
+                                <span
+                                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-900/40 text-slate-600 dark:text-slate-300 text-[9px] font-bold shadow-sm border border-slate-200/50 dark:border-slate-800/50 max-w-[120px]"
+                                    title={`${t('accounts.project_id', 'Project ID')}: ${account.token.project_id}`}
+                                >
+                                    <Hash className="w-2.5 h-2.5" />
+                                    <span className="truncate">{account.token.project_id}</span>
+                                </span>
+                            )}
                         </div>
                         <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono shrink-0 whitespace-nowrap">
                             {new Date(account.last_used * 1000).toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
@@ -261,6 +295,35 @@ function AccountCard({ account, selected, onSelect, isCurrent: propIsCurrent, is
                         </div>
                     </div>
                 )}
+                {isEditingProjectId && (
+                    <div className="absolute inset-0 bg-white/95 dark:bg-base-100/95 rounded-xl z-10 flex items-center justify-center p-4">
+                        <div className="flex items-center gap-2 w-full max-w-sm">
+                            <input
+                                type="text"
+                                className="flex-1 px-2 py-1 text-sm border border-slate-300 dark:border-slate-700 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-base-200 font-mono"
+                                placeholder={t('accounts.project_id_placeholder', 'Project ID')}
+                                value={projectIdInput}
+                                onChange={(e) => setProjectIdInput(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                autoFocus
+                            />
+                            <button
+                                className="p-1.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg transition-all"
+                                onClick={handleSaveProjectId}
+                                title={t('common.save', 'Save')}
+                            >
+                                <Check className="w-4 h-4" />
+                            </button>
+                            <button
+                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all"
+                                onClick={handleCancelProjectId}
+                                title={t('common.cancel', 'Cancel')}
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                )}
                 <div className="flex flex-wrap items-center justify-center gap-1 w-full">
                     <button
                         className="p-1.5 text-gray-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/30 rounded-lg transition-all"
@@ -285,10 +348,32 @@ function AccountCard({ account, selected, onSelect, isCurrent: propIsCurrent, is
                                     ? "text-orange-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/30"
                                     : "text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/30"
                             )}
-                            onClick={(e) => { e.stopPropagation(); setIsEditingLabel(true); }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsEditingProjectId(false);
+                                setIsEditingLabel(true);
+                            }}
                             title={t('accounts.edit_label', 'Edit Label')}
                         >
                             <Tag className="w-3.5 h-3.5" />
+                        </button>
+                    )}
+                    {onUpdateProjectId && (
+                        <button
+                            className={cn(
+                                "p-1.5 rounded-lg transition-all",
+                                account.token.project_id
+                                    ? "text-slate-600 hover:text-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900/30"
+                                    : "text-gray-400 hover:text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-900/30"
+                            )}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsEditingLabel(false);
+                                setIsEditingProjectId(true);
+                            }}
+                            title={t('accounts.edit_project_id', 'Edit Project ID')}
+                        >
+                            <Hash className="w-3.5 h-3.5" />
                         </button>
                     )}
                     <button

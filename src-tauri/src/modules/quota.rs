@@ -4,7 +4,7 @@ use reqwest;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-const QUOTA_API_URL: &str =
+const QUOTA_API_URL_DEFAULT: &str =
     "https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:fetchAvailableModels";
 
 /// Critical retry threshold: considered near recovery when quota reaches 95%
@@ -72,7 +72,52 @@ async fn create_warmup_client(account_id: Option<&str>) -> reqwest::Client {
     }
 }
 
-const CLOUD_CODE_BASE_URL: &str = "https://daily-cloudcode-pa.sandbox.googleapis.com";
+const CLOUD_CODE_BASE_URL_DEFAULT: &str = "https://daily-cloudcode-pa.sandbox.googleapis.com";
+
+fn resolve_v1internal_base_url() -> Option<String> {
+    let cfg = crate::proxy::config::get_endpoint_proxy_config();
+    if cfg.enabled {
+        for url in &cfg.base_urls {
+            let trimmed = url.trim().trim_end_matches('/');
+            if !trimmed.is_empty() {
+                return Some(trimmed.to_string());
+            }
+        }
+    }
+    None
+}
+
+fn resolve_load_code_assist_url() -> String {
+    let cfg = crate::proxy::config::get_endpoint_proxy_config();
+    if cfg.enabled {
+        if let Some(custom) = cfg.load_code_assist_url.as_ref() {
+            let trimmed = custom.trim();
+            if !trimmed.is_empty() {
+                return trimmed.to_string();
+            }
+        }
+        if let Some(base) = resolve_v1internal_base_url() {
+            return format!("{}:loadCodeAssist", base);
+        }
+    }
+    format!("{}/v1internal:loadCodeAssist", CLOUD_CODE_BASE_URL_DEFAULT)
+}
+
+fn resolve_quota_api_url() -> String {
+    if let Some(base) = resolve_v1internal_base_url() {
+        return format!("{}:fetchAvailableModels", base);
+    }
+    QUOTA_API_URL_DEFAULT.to_string()
+}
+
+fn apply_host_override(
+    builder: reqwest::RequestBuilder,
+) -> reqwest::RequestBuilder {
+    if let Some(host) = crate::proxy::config::resolve_endpoint_proxy_host_header() {
+        return builder.header(reqwest::header::HOST, host);
+    }
+    builder
+}
 
 /// Fetch project ID and subscription tier
 async fn fetch_project_id(
@@ -83,8 +128,11 @@ async fn fetch_project_id(
     let client = create_client(account_id).await;
     let meta = json!({"metadata": {"ideType": "ANTIGRAVITY"}});
 
-    let res = client
-        .post(format!("{}/v1internal:loadCodeAssist", CLOUD_CODE_BASE_URL))
+    let url = resolve_load_code_assist_url();
+    let res = apply_host_override(
+        client
+            .post(url)
+    )
         .header(
             reqwest::header::AUTHORIZATION,
             format!("Bearer {}", access_token),
@@ -170,12 +218,14 @@ pub async fn fetch_quota_with_cache(
         "project": final_project_id
     });
 
-    let url = QUOTA_API_URL;
+    let url = resolve_quota_api_url();
     let mut last_error: Option<AppError> = None;
 
     for attempt in 1..=MAX_RETRIES {
-        match client
-            .post(url)
+        match apply_host_override(
+            client
+                .post(url.clone())
+        )
             .bearer_auth(access_token)
             .header(
                 reqwest::header::USER_AGENT,
@@ -313,14 +363,23 @@ pub async fn get_valid_token_for_warmup(
         }
     }
 
-    // Fetch project_id
-    let (project_id, _) = fetch_project_id(
-        &account.token.access_token,
-        &account.email,
-        Some(&account.id),
-    )
-    .await;
-    let final_pid = project_id.unwrap_or_else(|| "bamboo-precept-lgxtn".to_string());
+    let final_pid = if let Some(pid) = account
+        .token
+        .project_id
+        .as_ref()
+        .map(|val| val.trim())
+        .filter(|val| !val.is_empty())
+    {
+        pid.to_string()
+    } else {
+        let (project_id, _) = fetch_project_id(
+            &account.token.access_token,
+            &account.email,
+            Some(&account.id),
+        )
+        .await;
+        project_id.unwrap_or_else(|| "bamboo-precept-lgxtn".to_string())
+    };
 
     Ok((account.token.access_token, final_pid))
 }

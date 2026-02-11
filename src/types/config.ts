@@ -79,6 +79,9 @@ export interface EndpointProxyConfig {
     enabled: boolean;
     base_urls: string[];
     load_code_assist_url?: string;
+    oauth_url?: string;
+    googleapis_url?: string;
+    host?: string;
 }
 
 export type SchedulingMode = 'CacheFirst' | 'Balance' | 'PerformanceFirst';

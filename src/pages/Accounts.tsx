@@ -51,6 +51,7 @@ function Accounts() {
     warmUpAccounts,
     warmUpAccount,
     updateAccountLabel,
+    updateAccountProjectId,
   } = useAccountStore();
   const { config, showAllQuotas, toggleShowAllQuotas } = useConfigStore();
 
@@ -104,6 +105,15 @@ function Accounts() {
     try {
       await updateAccountLabel(accountId, label);
       showToast(t('accounts.label_updated', 'Label updated'), 'success');
+    } catch (error) {
+      showToast(`${t('common.error')}: ${error}`, 'error');
+    }
+  };
+
+  const handleUpdateProjectId = async (accountId: string, projectId: string) => {
+    try {
+      await updateAccountProjectId(accountId, projectId);
+      showToast(t('accounts.project_id_updated', 'Project ID updated'), 'success');
     } catch (error) {
       showToast(`${t('common.error')}: ${error}`, 'error');
     }
@@ -1074,6 +1084,7 @@ function Accounts() {
                 onReorder={reorderAccounts}
                 onWarmup={handleWarmup}
                 onUpdateLabel={handleUpdateLabel}
+                onUpdateProjectId={handleUpdateProjectId}
               />
             </div>
           </div>
@@ -1100,6 +1111,7 @@ function Accounts() {
               }
               onWarmup={handleWarmup}
               onUpdateLabel={handleUpdateLabel}
+              onUpdateProjectId={handleUpdateProjectId}
             />
           </div>
         )}

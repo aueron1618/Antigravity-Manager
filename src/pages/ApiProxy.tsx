@@ -716,6 +716,9 @@ export default function ApiProxy() {
             enabled: false,
             base_urls: [],
             load_code_assist_url: undefined,
+            oauth_url: undefined,
+            googleapis_url: undefined,
+            host: undefined,
         };
 
         const newConfig = {
@@ -2147,6 +2150,48 @@ print(response.text)`;
                                                 disabled={!appConfig.proxy.endpoint_proxy?.enabled}
                                                 className="input input-sm input-bordered w-full font-mono text-xs disabled:opacity-50"
                                                 placeholder="https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:loadCodeAssist"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[11px] font-medium text-gray-500 dark:text-gray-400 inline-flex items-center gap-2">
+                                                {t('proxy.config.endpoint_proxy.oauth', { defaultValue: 'OAuth Base URL' })}
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={appConfig.proxy.endpoint_proxy?.oauth_url || ''}
+                                                onChange={(e) => updateEndpointProxyConfig({ oauth_url: e.target.value })}
+                                                disabled={!appConfig.proxy.endpoint_proxy?.enabled}
+                                                className="input input-sm input-bordered w-full font-mono text-xs disabled:opacity-50"
+                                                placeholder="https://gcli-api.sukaka.top/oauth2"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[11px] font-medium text-gray-500 dark:text-gray-400 inline-flex items-center gap-2">
+                                                {t('proxy.config.endpoint_proxy.googleapis', { defaultValue: 'Google APIs Base URL' })}
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={appConfig.proxy.endpoint_proxy?.googleapis_url || ''}
+                                                onChange={(e) => updateEndpointProxyConfig({ googleapis_url: e.target.value })}
+                                                disabled={!appConfig.proxy.endpoint_proxy?.enabled}
+                                                className="input input-sm input-bordered w-full font-mono text-xs disabled:opacity-50"
+                                                placeholder="https://gcli-api.sukaka.top/googleapis"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[11px] font-medium text-gray-500 dark:text-gray-400 inline-flex items-center gap-2">
+                                                {t('proxy.config.endpoint_proxy.host', { defaultValue: 'Upstream Host Header (optional)' })}
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={appConfig.proxy.endpoint_proxy?.host || ''}
+                                                onChange={(e) => updateEndpointProxyConfig({ host: e.target.value })}
+                                                disabled={!appConfig.proxy.endpoint_proxy?.enabled}
+                                                className="input input-sm input-bordered w-full font-mono text-xs disabled:opacity-50"
+                                                placeholder="gcli-api.sukaka.top/daily-cloudcode-pa"
                                             />
                                         </div>
                                     </div>

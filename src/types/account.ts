@@ -25,6 +25,7 @@ export interface TokenData {
     expiry_timestamp: number;
     token_type: string;
     email?: string;
+    project_id?: string;
 }
 
 export interface QuotaData {

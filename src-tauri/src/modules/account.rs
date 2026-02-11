@@ -1513,12 +1513,14 @@ pub async fn fetch_quota_with_retry(account: &mut Account) -> crate::error::AppR
     }
 
     // 2. Attempt query
-    let result: crate::error::AppResult<(QuotaData, Option<String>)> = modules::fetch_quota(
-        &account.token.access_token,
-        &account.email,
-        Some(&account.id),
-    )
-    .await;
+    let result: crate::error::AppResult<(QuotaData, Option<String>)> =
+        modules::quota::fetch_quota_with_cache(
+            &account.token.access_token,
+            &account.email,
+            account.token.project_id.as_deref(),
+            Some(&account.id),
+        )
+        .await;
 
     // Capture potentially updated project_id and save
     if let Ok((ref _q, ref project_id)) = result {
@@ -1599,9 +1601,10 @@ pub async fn fetch_quota_with_retry(account: &mut Account) -> crate::error::AppR
 
                 // Retry query
                 let retry_result: crate::error::AppResult<(QuotaData, Option<String>)> =
-                    modules::fetch_quota(
+                    modules::quota::fetch_quota_with_cache(
                         &new_token.access_token,
                         &account.email,
+                        account.token.project_id.as_deref(),
                         Some(&account.id),
                     )
                     .await;

@@ -123,6 +123,10 @@
         "edit_label": "编辑标签",
         "custom_label_placeholder": "输入自定义标签",
         "label_updated": "标签已更新",
+        "edit_project_id": "编辑 Project ID",
+        "project_id": "Project ID",
+        "project_id_placeholder": "输入 Project ID",
+        "project_id_updated": "Project ID 已更新",
         "add_account": "添加账号",
         "refresh_all": "刷新所有",
         "refresh_selected": "刷新 ({{count}})",
@@ -784,7 +788,10 @@
                 "tooltip": "自定义 v1internal 的 base endpoint（sandbox/daily/prod），支持多条回退。",
                 "desc": "用于区域专线或自建网关；留空使用内置默认值。",
                 "base_urls": "v1internal Base URL 列表（每行一个）",
-                "load_code_assist": "loadCodeAssist 地址（可选）"
+                "load_code_assist": "loadCodeAssist 地址（可选）",
+                "oauth": "OAuth 基础地址",
+                "googleapis": "Google APIs 基础地址",
+                "host": "上游 Host Header（可选）"
             },
             "experimental": {
                 "title": "实验性设置 (Experimental)",

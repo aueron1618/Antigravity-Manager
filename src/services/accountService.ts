@@ -195,3 +195,8 @@ export async function updateAccountLabel(accountId: string, label: string): Prom
     return await invoke('update_account_label', { accountId, label });
 }
 
+// Project ID 设置
+export async function updateAccountProjectId(accountId: string, projectId: string): Promise<void> {
+    return await invoke('update_account_project_id', { accountId, projectId });
+}
+

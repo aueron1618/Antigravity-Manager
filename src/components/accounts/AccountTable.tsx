@@ -41,6 +41,7 @@ import {
     Tag,
     X,
     Check,
+    Hash,
 } from 'lucide-react';
 import { Account } from '../../types/account';
 import { useTranslation } from 'react-i18next';
@@ -71,6 +72,7 @@ interface AccountTableProps {
     onToggleProxy: (accountId: string) => void;
     onWarmup?: (accountId: string) => void;
     onUpdateLabel?: (accountId: string, label: string) => void;
+    onUpdateProjectId?: (accountId: string, projectId: string) => void;
     /** 拖拽排序回调，当用户完成拖拽时触发 */
     onReorder?: (accountIds: string[]) => void;
 }
@@ -92,6 +94,7 @@ interface SortableRowProps {
     onToggleProxy: () => void;
     onWarmup?: () => void;
     onUpdateLabel?: (label: string) => void;
+    onUpdateProjectId?: (projectId: string) => void;
 }
 
 interface AccountRowContentProps {
@@ -108,6 +111,7 @@ interface AccountRowContentProps {
     onToggleProxy: () => void;
     onWarmup?: () => void;
     onUpdateLabel?: (label: string) => void;
+    onUpdateProjectId?: (projectId: string) => void;
 }
 
 // ============================================================================
@@ -194,6 +198,7 @@ function SortableAccountRow({
     onToggleProxy,
     onWarmup,
     onUpdateLabel,
+    onUpdateProjectId,
 }: SortableRowProps) {
     const { t } = useTranslation();
     const {
@@ -258,6 +263,7 @@ function SortableAccountRow({
                 onToggleProxy={onToggleProxy}
                 onWarmup={onWarmup}
                 onUpdateLabel={onUpdateLabel}
+                onUpdateProjectId={onUpdateProjectId}
             />
         </tr>
     );
@@ -281,6 +287,7 @@ function AccountRowContent({
     onToggleProxy,
     onWarmup,
     onUpdateLabel,
+    onUpdateProjectId,
 }: AccountRowContentProps) {
     const { t } = useTranslation();
     const { config, showAllQuotas } = useConfigStore();
@@ -288,6 +295,8 @@ function AccountRowContent({
     // 自定义标签编辑状态
     const [isEditingLabel, setIsEditingLabel] = useState(false);
     const [labelInput, setLabelInput] = useState(account.custom_label || '');
+    const [isEditingProjectId, setIsEditingProjectId] = useState(false);
+    const [projectIdInput, setProjectIdInput] = useState(account.token.project_id || '');
 
     const handleSaveLabel = () => {
         if (onUpdateLabel) {
@@ -301,11 +310,33 @@ function AccountRowContent({
         setIsEditingLabel(false);
     };
 
+    const handleSaveProjectId = () => {
+        if (onUpdateProjectId) {
+            onUpdateProjectId(projectIdInput.trim());
+        }
+        setIsEditingProjectId(false);
+    };
+
+    const handleCancelProjectId = () => {
+        setProjectIdInput(account.token.project_id || '');
+        setIsEditingProjectId(false);
+    };
+
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter') {
-            handleSaveLabel();
+            if (isEditingLabel) {
+                handleSaveLabel();
+            }
+            if (isEditingProjectId) {
+                handleSaveProjectId();
+            }
         } else if (e.key === 'Escape') {
-            handleCancelLabel();
+            if (isEditingLabel) {
+                handleCancelLabel();
+            }
+            if (isEditingProjectId) {
+                handleCancelProjectId();
+            }
         }
     };
 
@@ -418,6 +449,15 @@ function AccountRowContent({
                                 {account.custom_label}
                             </span>
                         )}
+                        {account.token.project_id && !isEditingProjectId && (
+                            <span
+                                className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-900/40 text-slate-600 dark:text-slate-300 text-[10px] font-bold shadow-sm border border-slate-200/50 dark:border-slate-800/50 max-w-[140px]"
+                                title={`${t('accounts.project_id', 'Project ID')}: ${account.token.project_id}`}
+                            >
+                                <Hash className="w-2.5 h-2.5" />
+                                <span className="truncate">{account.token.project_id}</span>
+                            </span>
+                        )}
                         {/* 标签编辑输入框 */}
                         {isEditingLabel && (
                             <div className="flex items-center gap-1">
@@ -441,6 +481,32 @@ function AccountRowContent({
                                 <button
                                     className="p-0.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-all"
                                     onClick={(e) => { e.stopPropagation(); handleCancelLabel(); }}
+                                >
+                                    <X className="w-3 h-3" />
+                                </button>
+                            </div>
+                        )}
+                        {isEditingProjectId && (
+                            <div className="flex items-center gap-1">
+                                <input
+                                    type="text"
+                                    className="px-1.5 py-0.5 text-[10px] w-32 border border-slate-300 dark:border-slate-700 rounded focus:outline-none focus:ring-1 focus:ring-slate-500 bg-white dark:bg-base-200 font-mono"
+                                    placeholder={t('accounts.project_id_placeholder', 'Project ID')}
+                                    value={projectIdInput}
+                                    onChange={(e) => setProjectIdInput(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    autoFocus
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                                <button
+                                    className="p-0.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 rounded transition-all"
+                                    onClick={(e) => { e.stopPropagation(); handleSaveProjectId(); }}
+                                >
+                                    <Check className="w-3 h-3" />
+                                </button>
+                                <button
+                                    className="p-0.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-all"
+                                    onClick={(e) => { e.stopPropagation(); handleCancelProjectId(); }}
                                 >
                                     <X className="w-3 h-3" />
                                 </button>
@@ -525,10 +591,32 @@ function AccountRowContent({
                                     ? "text-orange-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/30"
                                     : "text-gray-500 dark:text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/30"
                             )}
-                            onClick={(e) => { e.stopPropagation(); setIsEditingLabel(true); }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsEditingProjectId(false);
+                                setIsEditingLabel(true);
+                            }}
                             title={t('accounts.edit_label', 'Edit Label')}
                         >
                             <Tag className="w-3.5 h-3.5" />
+                        </button>
+                    )}
+                    {onUpdateProjectId && (
+                        <button
+                            className={cn(
+                                "p-1.5 rounded-lg transition-all",
+                                account.token.project_id
+                                    ? "text-slate-600 hover:text-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900/30"
+                                    : "text-gray-500 dark:text-gray-400 hover:text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-900/30"
+                            )}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsEditingLabel(false);
+                                setIsEditingProjectId(true);
+                            }}
+                            title={t('accounts.edit_project_id', 'Edit Project ID')}
+                        >
+                            <Hash className="w-3.5 h-3.5" />
                         </button>
                     )}
                     <button
@@ -619,6 +707,7 @@ function AccountTable({
     onReorder,
     onWarmup,
     onUpdateLabel,
+    onUpdateProjectId,
 }: AccountTableProps) {
     const { t } = useTranslation();
 
@@ -716,6 +805,7 @@ function AccountTable({
                                     onToggleProxy={() => onToggleProxy(account.id)}
                                     onWarmup={onWarmup ? () => onWarmup(account.id) : undefined}
                                     onUpdateLabel={onUpdateLabel ? (label: string) => onUpdateLabel(account.id, label) : undefined}
+                                    onUpdateProjectId={onUpdateProjectId ? (projectId: string) => onUpdateProjectId(account.id, projectId) : undefined}
                                 />
                             ))}
                         </tbody>
