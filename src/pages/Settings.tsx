@@ -1185,6 +1185,196 @@ function Settings() {
                                     </div>
                                 )}
                             </div>
+
+                            <div className="group bg-white dark:bg-base-100 rounded-xl p-5 border border-gray-100 dark:border-base-200 hover:border-emerald-200 transition-all duration-300 shadow-sm">
+                                <div className="flex items-center gap-4 mb-5">
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-500 shadow-sm">
+                                        <Activity size={18} />
+                                    </div>
+                                    <div>
+                                        <div className="font-bold text-gray-900 dark:text-gray-100 text-sm">
+                                            {t('proxy.config.stream_handling.title', { defaultValue: 'Stream Handling' })}
+                                        </div>
+                                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-tight max-w-[320px]">
+                                            {t('proxy.config.stream_handling.desc', { defaultValue: 'Control how stream and non-stream requests are transformed.' })}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-base-200 rounded-lg border border-gray-100 dark:border-base-300">
+                                        <div>
+                                            <div className="text-sm font-bold text-gray-900 dark:text-base-content">
+                                                {t('proxy.config.stream_handling.fake_non_stream.title', { defaultValue: 'Fake Non-Stream' })}
+                                            </div>
+                                            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                                                {t('proxy.config.stream_handling.fake_non_stream.desc', { defaultValue: 'Upgrade non-stream to stream upstream, then aggregate back to JSON.' })}
+                                            </p>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={formData.proxy?.stream_handling?.fake_non_stream !== false}
+                                                onChange={(e) => setFormData({
+                                                    ...formData,
+                                                    proxy: {
+                                                        ...formData.proxy,
+                                                        stream_handling: {
+                                                            ...(formData.proxy?.stream_handling ?? { fake_non_stream: true, enable_fake_streaming: true }),
+                                                            fake_non_stream: e.target.checked
+                                                        }
+                                                    }
+                                                })}
+                                            />
+                                            <div className="w-11 h-6 bg-gray-200 dark:bg-base-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500 shadow-inner"></div>
+                                        </label>
+                                    </div>
+
+                                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-base-200 rounded-lg border border-gray-100 dark:border-base-300">
+                                        <div>
+                                            <div className="text-sm font-bold text-gray-900 dark:text-base-content">
+                                                {t('proxy.config.stream_handling.enable_fake_streaming.title', { defaultValue: 'Enable Fake Stream Prefix' })}
+                                            </div>
+                                            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                                                {t('proxy.config.stream_handling.enable_fake_streaming.desc', { defaultValue: 'Expose and handle the `假流式/` model prefix.' })}
+                                            </p>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={formData.proxy?.stream_handling?.enable_fake_streaming !== false}
+                                                onChange={(e) => setFormData({
+                                                    ...formData,
+                                                    proxy: {
+                                                        ...formData.proxy,
+                                                        stream_handling: {
+                                                            ...(formData.proxy?.stream_handling ?? { fake_non_stream: true, enable_fake_streaming: true }),
+                                                            enable_fake_streaming: e.target.checked
+                                                        }
+                                                    }
+                                                })}
+                                            />
+                                            <div className="w-11 h-6 bg-gray-200 dark:bg-base-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500 shadow-inner"></div>
+                                        </label>
+                                    </div>
+
+                                    <div className="p-3 bg-gray-50 dark:bg-base-200 rounded-lg border border-gray-100 dark:border-base-300 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <div className="text-sm font-bold text-gray-900 dark:text-base-content">
+                                                    {t('proxy.config.punctuation.normalize.title', { defaultValue: 'Chinese Punctuation Normalize' })}
+                                                </div>
+                                                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                                                    {t('proxy.config.punctuation.normalize.desc', { defaultValue: 'Normalize punctuation in non-stream JSON responses.' })}
+                                                </p>
+                                            </div>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    className="sr-only peer"
+                                                    checked={!!formData.proxy?.punctuation?.normalize}
+                                                    onChange={(e) => setFormData({
+                                                        ...formData,
+                                                        proxy: {
+                                                            ...formData.proxy,
+                                                            punctuation: {
+                                                                ...(formData.proxy?.punctuation ?? { normalize: true, exclude_tags: 'code,pre,script,style' }),
+                                                                normalize: e.target.checked
+                                                            }
+                                                        }
+                                                    })}
+                                                />
+                                                <div className="w-11 h-6 bg-gray-200 dark:bg-base-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-500 shadow-inner"></div>
+                                            </label>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
+                                                {t('proxy.config.punctuation.exclude_tags.title', { defaultValue: 'Exclude Tags' })}
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={formData.proxy?.punctuation?.exclude_tags ?? 'code,pre,script,style'}
+                                                onChange={(e) => setFormData({
+                                                    ...formData,
+                                                    proxy: {
+                                                        ...formData.proxy,
+                                                        punctuation: {
+                                                            ...(formData.proxy?.punctuation ?? { normalize: true, exclude_tags: '' }),
+                                                            exclude_tags: e.target.value
+                                                        }
+                                                    }
+                                                })}
+                                                disabled={!formData.proxy?.punctuation?.normalize}
+                                                className="w-full px-3 py-2 bg-white dark:bg-base-100 border border-gray-200 dark:border-base-300 rounded-lg text-xs font-mono disabled:opacity-50"
+                                                placeholder="code,pre,script,style"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="group bg-white dark:bg-base-100 rounded-xl p-5 border border-gray-100 dark:border-base-200 hover:border-orange-200 transition-all duration-300 shadow-sm">
+                                <div className="flex items-center gap-4 mb-5">
+                                    <div className="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center text-orange-500 shadow-sm">
+                                        <CheckCircle2 size={18} />
+                                    </div>
+                                    <div>
+                                        <div className="font-bold text-gray-900 dark:text-gray-100 text-sm">
+                                            {t('proxy.config.auto_disable_on_consumption.title', { defaultValue: 'Auto Disable On Consumption' })}
+                                        </div>
+                                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-tight max-w-[320px]">
+                                            {t('proxy.config.auto_disable_on_consumption.desc', { defaultValue: 'Disable proxy accounts when usage crosses the threshold.' })}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-base-200 rounded-lg border border-gray-100 dark:border-base-300">
+                                        <span className="text-sm font-bold text-gray-900 dark:text-base-content">
+                                            {t('proxy.config.auto_disable_on_consumption.title', { defaultValue: 'Auto Disable On Consumption' })}
+                                        </span>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={formData.proxy?.auto_disable_on_consumption !== false}
+                                                onChange={(e) => setFormData({
+                                                    ...formData,
+                                                    proxy: {
+                                                        ...formData.proxy,
+                                                        auto_disable_on_consumption: e.target.checked
+                                                    }
+                                                })}
+                                            />
+                                            <div className="w-11 h-6 bg-gray-200 dark:bg-base-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500 shadow-inner"></div>
+                                        </label>
+                                    </div>
+
+                                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-base-200 rounded-lg border border-gray-100 dark:border-base-300">
+                                        <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+                                            {t('proxy.config.auto_disable_on_consumption.percent_label', { defaultValue: 'Consumption Threshold (%)' })}
+                                        </label>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            max={99}
+                                            value={formData.proxy?.auto_disable_consumption_percent ?? 20}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                proxy: {
+                                                    ...formData.proxy,
+                                                    auto_disable_consumption_percent: Math.max(1, Math.min(99, Number.parseFloat(e.target.value) || 20))
+                                                }
+                                            })}
+                                            disabled={formData.proxy?.auto_disable_on_consumption === false}
+                                            className="w-24 px-2 py-1.5 bg-white dark:bg-base-100 border border-gray-200 dark:border-base-300 rounded-lg text-xs font-mono disabled:opacity-50"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
 
