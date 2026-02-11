@@ -558,6 +558,12 @@
             "placeholder": "输入全局系统提示词...\n例如：你是一位资深的全栈开发工程师，擅长 React 和 Rust。请使用简体中文回复。",
             "char_count": "{{count}} 字符",
             "long_prompt_warning": "提示词较长（超过 2000 字符），可能会占用较多的上下文窗口空间。"
+        },
+        "claude_thinking_mapping": {
+            "title": "Claude Thinking 模型映射",
+            "hint": "将 -thinking 后缀模型映射为基础模型 ID。",
+            "enabled_desc": "开启：claude-*-thinking 会映射为基础模型，同时保留 thinking 参数。",
+            "disabled_desc": "关闭：保留原始 thinking 模型 ID，交由上游处理。"
         }
     },
     "tray": {
@@ -740,6 +746,45 @@
                 "level": "等级 {{level}}",
                 "invalid_format": "格式无效。请使用逗号分隔的数字 (例如 60, 300)",
                 "clear_records": "清除所有限流记录"
+            },
+            "stream_handling": {
+                "title": "流式处理",
+                "desc": "控制流式/非流式请求的转换逻辑。",
+                "fake_non_stream": {
+                    "title": "假非流",
+                    "desc": "将非流式请求升级为流式上游，再聚合回 JSON。",
+                    "tooltip": "开启后，非流式请求会以流式方式发送并在本地聚合，避免上游非流限制。"
+                },
+                "enable_fake_streaming": {
+                    "title": "启用假流式前缀",
+                    "desc": "暴露并识别 `假流式/` 模型前缀。",
+                    "tooltip": "带前缀的流式请求会使用非流上游响应并转为 SSE 回放。"
+                }
+            },
+            "punctuation": {
+                "normalize": {
+                    "title": "中文标点规范化",
+                    "desc": "规范化非流式 JSON 响应中的中文标点。",
+                    "tooltip": "将中文逗号、引号等统一为常用格式，便于后处理。"
+                },
+                "exclude_tags": {
+                    "title": "排除标签",
+                    "tooltip": "逗号分隔的 HTML 标签名称，这些标签内不会做标点规范化（例如 code,pre,script,style）。"
+                }
+            },
+            "auto_disable_on_consumption": {
+                "title": "按消耗自动禁用",
+                "desc": "当任一模型消耗达到阈值时自动禁用反代账号。",
+                "tooltip": "达到阈值后自动禁用对应账号，可在账号页手动恢复。",
+                "percent_label": "消耗阈值 (%)",
+                "percent_tooltip": "范围 1-99。例如 20 表示消耗 >= 20% 时禁用。"
+            },
+            "endpoint_proxy": {
+                "title": "端点代理",
+                "tooltip": "自定义 v1internal 的 base endpoint（sandbox/daily/prod），支持多条回退。",
+                "desc": "用于区域专线或自建网关；留空使用内置默认值。",
+                "base_urls": "v1internal Base URL 列表（每行一个）",
+                "load_code_assist": "loadCodeAssist 地址（可选）"
             },
             "experimental": {
                 "title": "实验性设置 (Experimental)",
