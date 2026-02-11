@@ -1,5 +1,5 @@
 use crate::proxy::monitor::ProxyRequestLog;
-use rusqlite::{params, Connection};
+use rusqlite::{params, params_from_iter, Connection};
 use std::path::PathBuf;
 
 pub fn get_proxy_db_path() -> Result<PathBuf, String> {
@@ -306,6 +306,80 @@ pub fn get_logs_count_filtered(filter: &str, errors_only: bool) -> Result<u64, S
     Ok(count)
 }
 
+fn get_refresh_window_timestamps(conn: &Connection) -> Result<Option<(i64, i64)>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT timestamp FROM request_logs WHERE method = 'TOKEN_REFRESH' ORDER BY timestamp DESC LIMIT 2",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let rows: Vec<i64> = stmt
+        .query_map([], |row| row.get(0))
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    if rows.len() < 2 {
+        return Ok(None);
+    }
+
+    Ok(Some((rows[1], rows[0])))
+}
+
+pub fn get_logs_count_between_refreshes(
+    filter: &str,
+    errors_only: bool,
+) -> Result<u64, String> {
+    let conn = connect_db()?;
+    let Some((start, end)) = get_refresh_window_timestamps(&conn)? else {
+        return Ok(0);
+    };
+
+    let filter_pattern = format!("%{}%", filter);
+
+    let (sql, params): (&str, Vec<rusqlite::types::Value>) = if errors_only {
+        if filter.is_empty() {
+            (
+                "SELECT COUNT(*) FROM request_logs
+                 WHERE timestamp >= ?1 AND timestamp <= ?2
+                   AND method != 'TOKEN_REFRESH'
+                   AND (status < 200 OR status >= 400)",
+                vec![start.into(), end.into()],
+            )
+        } else {
+            (
+                "SELECT COUNT(*) FROM request_logs
+                 WHERE timestamp >= ?1 AND timestamp <= ?2
+                   AND method != 'TOKEN_REFRESH'
+                   AND (status < 200 OR status >= 400)
+                   AND (url LIKE ?3 OR method LIKE ?3 OR model LIKE ?3 OR CAST(status AS TEXT) LIKE ?3 OR account_email LIKE ?3 OR client_ip LIKE ?3)",
+                vec![start.into(), end.into(), filter_pattern.into()],
+            )
+        }
+    } else if filter.is_empty() {
+        (
+            "SELECT COUNT(*) FROM request_logs
+             WHERE timestamp >= ?1 AND timestamp <= ?2
+               AND method != 'TOKEN_REFRESH'",
+            vec![start.into(), end.into()],
+        )
+    } else {
+        (
+            "SELECT COUNT(*) FROM request_logs
+             WHERE timestamp >= ?1 AND timestamp <= ?2
+               AND method != 'TOKEN_REFRESH'
+               AND (url LIKE ?3 OR method LIKE ?3 OR model LIKE ?3 OR CAST(status AS TEXT) LIKE ?3 OR account_email LIKE ?3 OR client_ip LIKE ?3)",
+            vec![start.into(), end.into(), filter_pattern.into()],
+        )
+    };
+
+    let count: u64 = conn
+        .query_row(sql, params_from_iter(params), |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+
+    Ok(count)
+}
+
 /// Get logs with search filter and pagination
 /// filter: search text to match in url, method, model, or status
 /// errors_only: if true, only return logs with status < 200 or >= 400
@@ -425,6 +499,115 @@ pub fn get_logs_filtered(
     };
 
     Ok(logs)
+}
+
+pub fn get_logs_between_refreshes(
+    filter: &str,
+    errors_only: bool,
+    limit: usize,
+    offset: usize,
+) -> Result<Vec<ProxyRequestLog>, String> {
+    let conn = connect_db()?;
+    let Some((start, end)) = get_refresh_window_timestamps(&conn)? else {
+        return Ok(Vec::new());
+    };
+
+    let filter_pattern = format!("%{}%", filter);
+
+    let (sql, params): (&str, Vec<rusqlite::types::Value>) = if errors_only {
+        if filter.is_empty() {
+            (
+                "SELECT id, timestamp, method, url, status, duration, model, error,
+                        NULL as request_body, NULL as response_body,
+                        input_tokens, output_tokens, account_email, mapped_model, protocol, client_ip, username
+                 FROM request_logs
+                 WHERE timestamp >= ?1 AND timestamp <= ?2
+                   AND method != 'TOKEN_REFRESH'
+                   AND (status < 200 OR status >= 400)
+                 ORDER BY timestamp DESC
+                 LIMIT ?3 OFFSET ?4",
+                vec![start.into(), end.into(), (limit as i64).into(), (offset as i64).into()],
+            )
+        } else {
+            (
+                "SELECT id, timestamp, method, url, status, duration, model, error,
+                        NULL as request_body, NULL as response_body,
+                        input_tokens, output_tokens, account_email, mapped_model, protocol, client_ip, username
+                 FROM request_logs
+                 WHERE timestamp >= ?1 AND timestamp <= ?2
+                   AND method != 'TOKEN_REFRESH'
+                   AND (status < 200 OR status >= 400)
+                   AND (url LIKE ?3 OR method LIKE ?3 OR model LIKE ?3 OR CAST(status AS TEXT) LIKE ?3 OR account_email LIKE ?3 OR client_ip LIKE ?3)
+                 ORDER BY timestamp DESC
+                 LIMIT ?4 OFFSET ?5",
+                vec![
+                    start.into(),
+                    end.into(),
+                    filter_pattern.into(),
+                    (limit as i64).into(),
+                    (offset as i64).into(),
+                ],
+            )
+        }
+    } else if filter.is_empty() {
+        (
+            "SELECT id, timestamp, method, url, status, duration, model, error,
+                    NULL as request_body, NULL as response_body,
+                    input_tokens, output_tokens, account_email, mapped_model, protocol, client_ip, username
+             FROM request_logs
+             WHERE timestamp >= ?1 AND timestamp <= ?2
+               AND method != 'TOKEN_REFRESH'
+             ORDER BY timestamp DESC
+             LIMIT ?3 OFFSET ?4",
+            vec![start.into(), end.into(), (limit as i64).into(), (offset as i64).into()],
+        )
+    } else {
+        (
+            "SELECT id, timestamp, method, url, status, duration, model, error,
+                    NULL as request_body, NULL as response_body,
+                    input_tokens, output_tokens, account_email, mapped_model, protocol, client_ip, username
+             FROM request_logs
+             WHERE timestamp >= ?1 AND timestamp <= ?2
+               AND method != 'TOKEN_REFRESH'
+               AND (url LIKE ?3 OR method LIKE ?3 OR model LIKE ?3 OR CAST(status AS TEXT) LIKE ?3 OR account_email LIKE ?3 OR client_ip LIKE ?3)
+             ORDER BY timestamp DESC
+             LIMIT ?4 OFFSET ?5",
+            vec![
+                start.into(),
+                end.into(),
+                filter_pattern.into(),
+                (limit as i64).into(),
+                (offset as i64).into(),
+            ],
+        )
+    };
+
+    let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
+    let logs_iter = stmt
+        .query_map(params_from_iter(params), |row| {
+            Ok(ProxyRequestLog {
+                id: row.get(0)?,
+                timestamp: row.get(1)?,
+                method: row.get(2)?,
+                url: row.get(3)?,
+                status: row.get(4)?,
+                duration: row.get(5)?,
+                model: row.get(6)?,
+                mapped_model: row.get(13).unwrap_or(None),
+                account_email: row.get(12).unwrap_or(None),
+                error: row.get(7)?,
+                request_body: None,
+                response_body: None,
+                input_tokens: row.get(10).unwrap_or(None),
+                output_tokens: row.get(11).unwrap_or(None),
+                protocol: row.get(14).unwrap_or(None),
+                client_ip: row.get(15).unwrap_or(None),
+                username: row.get(16).unwrap_or(None),
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    Ok(logs_iter.filter_map(|r| r.ok()).collect())
 }
 
 /// Get all logs with full details for export

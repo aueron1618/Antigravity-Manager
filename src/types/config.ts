@@ -24,6 +24,7 @@ export interface ProxyConfig {
     saved_user_agent?: string;
     punctuation?: PunctuationConfig;
     thinking_budget?: ThinkingBudgetConfig;
+    antigravity_identity?: AntigravityIdentityConfig;
     global_system_prompt?: GlobalSystemPromptConfig;
     auto_disable_on_consumption?: boolean;
     auto_disable_consumption_percent?: number;
@@ -54,6 +55,18 @@ export interface ThinkingBudgetConfig {
 
 /** 全局系统提示词配置 */
 export interface GlobalSystemPromptConfig {
+    /** 是否启用 */
+    enabled: boolean;
+    /** 提示词内容 */
+    content: string;
+}
+
+// ============================================================================
+// Antigravity 身份指令配置
+// ============================================================================
+
+/** Antigravity 身份指令配置 */
+export interface AntigravityIdentityConfig {
     /** 是否启用 */
     enabled: boolean;
     /** 提示词内容 */

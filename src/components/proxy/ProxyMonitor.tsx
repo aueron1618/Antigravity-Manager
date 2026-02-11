@@ -140,6 +140,7 @@ const LogTable: React.FC<LogTableProps> = ({
 
 export const ProxyMonitor: React.FC<ProxyMonitorProps> = ({ className }) => {
     const { t } = useTranslation();
+    const REFRESH_WINDOW_FILTER = '__TOKEN_REFRESH_WINDOW__';
     const [logs, setLogs] = useState<ProxyRequestLog[]>([]);
     const [stats, setStats] = useState<ProxyStats>({ total_requests: 0, success_count: 0, error_count: 0 });
     const [filter, setFilter] = useState('');
@@ -197,37 +198,65 @@ export const ProxyMonitor: React.FC<ProxyMonitorProps> = ({ className }) => {
             }
 
             const errorsOnly = searchFilter === '__ERROR__';
-            const baseFilter = errorsOnly ? '' : searchFilter;
+            const refreshWindowOnly = searchFilter === REFRESH_WINDOW_FILTER;
+            const baseFilter = errorsOnly || refreshWindowOnly ? '' : searchFilter;
             const actualFilter = accountEmailFilter
                 ? (baseFilter ? `${baseFilter} ${accountEmailFilter}` : accountEmailFilter)
                 : baseFilter;
 
             // Get count with filter
-            const count = await Promise.race([
-                invoke<number>('get_proxy_logs_count_filtered', {
-                    filter: actualFilter,
-                    errorsOnly: errorsOnly
-                }),
-                timeoutPromise
-            ]) as number;
-            setTotalCount(count);
-
-            // Use filtered paginated query
             const offset = (page - 1) * pageSize;
-            const history = await Promise.race([
-                invoke<ProxyRequestLog[]>('get_proxy_logs_filtered', {
-                    filter: actualFilter,
-                    errorsOnly: errorsOnly,
-                    limit: pageSize,
-                    offset: offset
-                }),
-                timeoutPromise
-            ]) as ProxyRequestLog[];
+            if (refreshWindowOnly) {
+                const count = await Promise.race([
+                    invoke<number>('get_proxy_logs_count_between_refreshes', {
+                        filter: actualFilter,
+                        errorsOnly: errorsOnly,
+                    }),
+                    timeoutPromise,
+                ]) as number;
+                setTotalCount(count);
 
-            if (Array.isArray(history)) {
-                setLogs(history);
-                // Clear pending logs to avoid duplicates (database data is authoritative)
-                pendingLogsRef.current = [];
+                const history = await Promise.race([
+                    invoke<ProxyRequestLog[]>('get_proxy_logs_between_refreshes', {
+                        filter: actualFilter,
+                        errorsOnly: errorsOnly,
+                        limit: pageSize,
+                        offset: offset,
+                    }),
+                    timeoutPromise,
+                ]) as ProxyRequestLog[];
+
+                if (Array.isArray(history)) {
+                    setLogs(history);
+                    // Clear pending logs to avoid duplicates (database data is authoritative)
+                    pendingLogsRef.current = [];
+                }
+            } else {
+                const count = await Promise.race([
+                    invoke<number>('get_proxy_logs_count_filtered', {
+                        filter: actualFilter,
+                        errorsOnly: errorsOnly,
+                    }),
+                    timeoutPromise,
+                ]) as number;
+                setTotalCount(count);
+
+                // Use filtered paginated query
+                const history = await Promise.race([
+                    invoke<ProxyRequestLog[]>('get_proxy_logs_filtered', {
+                        filter: actualFilter,
+                        errorsOnly: errorsOnly,
+                        limit: pageSize,
+                        offset: offset,
+                    }),
+                    timeoutPromise,
+                ]) as ProxyRequestLog[];
+
+                if (Array.isArray(history)) {
+                    setLogs(history);
+                    // Clear pending logs to avoid duplicates (database data is authoritative)
+                    pendingLogsRef.current = [];
+                }
             }
 
             const currentStats = await Promise.race([
@@ -406,6 +435,7 @@ export const ProxyMonitor: React.FC<ProxyMonitorProps> = ({ className }) => {
     const quickFilters = [
         { label: t('monitor.filters.all'), value: '' },
         { label: t('monitor.filters.error'), value: '__ERROR__' },
+        { label: t('monitor.filters.refresh_window', { defaultValue: 'Token 刷新窗口' }), value: REFRESH_WINDOW_FILTER },
         { label: t('monitor.filters.chat'), value: 'completions' },
         { label: t('monitor.filters.gemini'), value: 'gemini' },
         { label: t('monitor.filters.claude'), value: 'claude' },
@@ -438,6 +468,62 @@ export const ProxyMonitor: React.FC<ProxyMonitorProps> = ({ className }) => {
         }
     };
 
+    const extractSystemInstruction = (body?: string) => {
+        if (!body) return null;
+        try {
+            const obj = JSON.parse(body);
+
+            const normalizeText = (value: any): string | null => {
+                if (!value) return null;
+                if (typeof value === 'string') return value;
+                if (Array.isArray(value)) {
+                    const parts = value
+                        .map((item: any) => normalizeText(item))
+                        .filter((item: any): item is string => Boolean(item));
+                    return parts.length ? parts.join('\n') : null;
+                }
+                if (typeof value === 'object') {
+                    if (typeof value.text === 'string') return value.text;
+                    if (Array.isArray(value.parts)) {
+                        const parts = value.parts
+                            .map((part: any) => normalizeText(part))
+                            .filter((item: any): item is string => Boolean(item));
+                        return parts.length ? parts.join('\n') : null;
+                    }
+                    if (Array.isArray(value.content)) {
+                        const parts = value.content
+                            .map((part: any) => normalizeText(part))
+                            .filter((item: any): item is string => Boolean(item));
+                        return parts.length ? parts.join('\n') : null;
+                    }
+                }
+                return null;
+            };
+
+            if (obj.systemInstruction) {
+                const systemText = normalizeText(obj.systemInstruction);
+                if (systemText) return systemText;
+            }
+
+            if (obj.system) {
+                const systemText = normalizeText(obj.system);
+                if (systemText) return systemText;
+            }
+
+            if (Array.isArray(obj.messages)) {
+                const systemMessage = obj.messages.find(
+                    (message: any) => message?.role === 'system' || message?.role === 'developer'
+                );
+                const systemText = normalizeText(systemMessage?.content ?? systemMessage?.text);
+                if (systemText) return systemText;
+            }
+        } catch (e) {
+            return null;
+        }
+
+        return null;
+    };
+
     const getCopyPayload = (body: string) => {
         try {
             const obj = JSON.parse(body);
@@ -447,6 +533,10 @@ export const ProxyMonitor: React.FC<ProxyMonitorProps> = ({ className }) => {
         }
     };
 
+    const systemInstruction = useMemo(
+        () => extractSystemInstruction(selectedLog?.request_body),
+        [selectedLog?.request_body]
+    );
 
     return (
         <div className={`flex flex-col bg-white dark:bg-base-100 rounded-xl shadow-sm border border-gray-100 dark:border-base-200 overflow-hidden ${className || 'flex-1'}`}>
@@ -641,7 +731,28 @@ export const ProxyMonitor: React.FC<ProxyMonitorProps> = ({ className }) => {
                                         <span className="font-mono font-semibold text-gray-900 dark:text-base-content text-xs">{selectedLog.account_email}</span>
                                     </div>
                                 )}
+                                {selectedLog.url && (
+                                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-base-300">
+                                        <span className="block text-gray-500 dark:text-gray-400 uppercase font-black text-[10px] tracking-widest mb-2">
+                                            {t('monitor.details.request_url', { defaultValue: '请求 URL' })}
+                                        </span>
+                                        <span className="font-mono font-semibold text-gray-900 dark:text-base-content text-xs break-all">
+                                            {selectedLog.url}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
+
+                            {systemInstruction && (
+                                <div className="bg-gray-50 dark:bg-base-200 p-4 rounded-xl border border-gray-200 dark:border-base-300">
+                                    <h3 className="text-xs font-bold uppercase text-gray-400 mb-2">
+                                        {t('monitor.details.system_instruction', { defaultValue: 'System Instruction' })}
+                                    </h3>
+                                    <pre className="text-[11px] font-mono whitespace-pre-wrap text-gray-700 dark:text-gray-300">
+                                        {systemInstruction}
+                                    </pre>
+                                </div>
+                            )}
 
                             {/* Payloads */}
                             <div className="space-y-4">

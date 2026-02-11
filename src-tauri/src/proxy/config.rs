@@ -127,6 +127,57 @@ pub fn update_claude_thinking_mapping_enabled(enabled: bool) {
 // ============================================================================
 static GLOBAL_SYSTEM_PROMPT_CONFIG: OnceLock<RwLock<GlobalSystemPromptConfig>> = OnceLock::new();
 
+// ============================================================================
+// Antigravity 身份指令配置存储
+// 允许用户自定义注入到所有请求的 Antigravity 身份指令内容
+// ============================================================================
+static GLOBAL_ANTIGRAVITY_IDENTITY_CONFIG: OnceLock<RwLock<AntigravityIdentityConfig>> =
+    OnceLock::new();
+
+/// 获取当前 Antigravity 身份指令配置
+pub fn get_antigravity_identity_config() -> AntigravityIdentityConfig {
+    GLOBAL_ANTIGRAVITY_IDENTITY_CONFIG
+        .get()
+        .and_then(|lock| lock.read().ok())
+        .map(|cfg| cfg.clone())
+        .unwrap_or_default()
+}
+
+/// 获取当前 Antigravity 身份指令内容（空内容时返回默认值）
+pub fn get_antigravity_identity_content() -> Option<String> {
+    let config = get_antigravity_identity_config();
+    if !config.enabled {
+        return None;
+    }
+
+    if config.content.trim().is_empty() {
+        return Some(default_antigravity_identity_content());
+    }
+
+    Some(config.content)
+}
+
+/// 更新 Antigravity 身份指令配置
+pub fn update_antigravity_identity_config(config: AntigravityIdentityConfig) {
+    if let Some(lock) = GLOBAL_ANTIGRAVITY_IDENTITY_CONFIG.get() {
+        if let Ok(mut cfg) = lock.write() {
+            *cfg = config.clone();
+            tracing::info!(
+                "[Antigravity-Identity] Config updated: enabled={}, content_len={}",
+                config.enabled,
+                config.content.len()
+            );
+        }
+    } else {
+        let _ = GLOBAL_ANTIGRAVITY_IDENTITY_CONFIG.set(RwLock::new(config.clone()));
+        tracing::info!(
+            "[Antigravity-Identity] Config initialized: enabled={}, content_len={}",
+            config.enabled,
+            config.content.len()
+        );
+    }
+}
+
 /// 获取当前全局系统提示词配置
 pub fn get_global_system_prompt() -> GlobalSystemPromptConfig {
     GLOBAL_SYSTEM_PROMPT_CONFIG
@@ -308,6 +359,33 @@ pub fn update_endpoint_proxy_config(config: EndpointProxyConfig) {
                 .unwrap_or(0),
             config.host.as_ref().map(|s| s.len()).unwrap_or(0)
         );
+    }
+}
+
+const DEFAULT_ANTIGRAVITY_IDENTITY_CONTENT: &str =
+    "You are Antigravity, a powerful agentic AI coding assistant designed by the Google Deepmind team working on Advanced Agentic Coding.\nYou are pair programming with a USER to solve their coding task. The task may require creating a new codebase, modifying or debugging an existing codebase, or simply answering a question.\n**Absolute paths only**\n**Proactiveness**";
+
+fn default_antigravity_identity_content() -> String {
+    DEFAULT_ANTIGRAVITY_IDENTITY_CONTENT.to_string()
+}
+
+/// Antigravity 身份指令配置
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AntigravityIdentityConfig {
+    /// 是否启用身份指令注入
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    /// 身份指令内容
+    #[serde(default = "default_antigravity_identity_content")]
+    pub content: String,
+}
+
+impl Default for AntigravityIdentityConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            content: default_antigravity_identity_content(),
+        }
     }
 }
 
@@ -824,6 +902,11 @@ pub struct ProxyConfig {
     #[serde(default)]
     pub thinking_budget: ThinkingBudgetConfig,
 
+    /// Antigravity 身份指令配置
+    /// 自动注入到各协议请求的 systemInstruction 中
+    #[serde(default)]
+    pub antigravity_identity: AntigravityIdentityConfig,
+
     /// 全局系统提示词配置
     /// 自动注入到所有 API 请求的 systemInstruction 中
     #[serde(default)]
@@ -886,6 +969,7 @@ impl Default for ProxyConfig {
             user_agent_override: None,
             saved_user_agent: None,
             thinking_budget: ThinkingBudgetConfig::default(),
+            antigravity_identity: AntigravityIdentityConfig::default(),
             global_system_prompt: GlobalSystemPromptConfig::default(),
             proxy_pool: ProxyPoolConfig::default(),
             image_thinking_mode: None,

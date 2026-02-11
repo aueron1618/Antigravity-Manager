@@ -5,6 +5,7 @@ import ThinkingBudget from "./ThinkingBudget";
 import GlobalSystemPrompt from "./GlobalSystemPrompt";
 import ImageThinkingMode from "./ImageThinkingMode";
 import ClaudeThinkingMapping from "./ClaudeThinkingMapping";
+import AntigravityIdentity from "./AntigravityIdentity";
 
 interface AdvancedThinkingProps {
     config: ProxyConfig;
@@ -64,6 +65,14 @@ export default function AdvancedThinking({
                         <GlobalSystemPrompt
                             config={config.global_system_prompt || { enabled: false, content: '' }}
                             onChange={(newConfig) => onChange({ ...config, global_system_prompt: newConfig })}
+                        />
+                    </div>
+
+                    {/* 5. Antigravity 身份指令 */}
+                    <div className="pt-4">
+                        <AntigravityIdentity
+                            config={config.antigravity_identity}
+                            onChange={(newConfig) => onChange({ ...config, antigravity_identity: newConfig })}
                         />
                     </div>
                 </div>

@@ -272,6 +272,8 @@ pub async fn ensure_admin_server(
     crate::proxy::update_thinking_budget_config(config.thinking_budget.clone());
     // [NEW] 初始化 Claude Thinking Mapping 配置
     crate::proxy::update_claude_thinking_mapping_enabled(config.claude_thinking_mapping);
+    // [NEW] 初始化 Antigravity 身份指令配置
+    crate::proxy::update_antigravity_identity_config(config.antigravity_identity.clone());
     // [NEW] 初始化全局系统提示词配置
     crate::proxy::update_global_system_prompt_config(config.global_system_prompt.clone());
     // [NEW] 初始化全局图像思维模式配置
@@ -466,6 +468,26 @@ pub async fn get_proxy_logs_filtered(
     offset: usize,
 ) -> Result<Vec<crate::proxy::monitor::ProxyRequestLog>, String> {
     crate::modules::proxy_db::get_logs_filtered(&filter, errors_only, limit, offset)
+}
+
+/// 获取 Token 刷新窗口内的日志数量
+#[tauri::command]
+pub async fn get_proxy_logs_count_between_refreshes(
+    filter: String,
+    errors_only: bool,
+) -> Result<u64, String> {
+    crate::modules::proxy_db::get_logs_count_between_refreshes(&filter, errors_only)
+}
+
+/// 获取 Token 刷新窗口内的分页日志
+#[tauri::command]
+pub async fn get_proxy_logs_between_refreshes(
+    filter: String,
+    errors_only: bool,
+    limit: usize,
+    offset: usize,
+) -> Result<Vec<crate::proxy::monitor::ProxyRequestLog>, String> {
+    crate::modules::proxy_db::get_logs_between_refreshes(&filter, errors_only, limit, offset)
 }
 
 /// 生成 API Key

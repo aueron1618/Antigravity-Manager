@@ -29,6 +29,7 @@ pub mod zai_vision_mcp; // Built-in Vision MCP server state
 pub mod zai_vision_tools; // Built-in Vision MCP tools (z.ai vision API) // 调试日志
 
 pub use config::update_global_system_prompt_config;
+pub use config::update_antigravity_identity_config;
 pub use config::update_image_thinking_mode;
 pub use config::update_punctuation_config;
 pub use config::update_stream_handling_config;

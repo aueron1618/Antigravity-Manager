@@ -335,11 +335,8 @@ pub fn wrap_request(
             }
         }
     } else {
-        // [NEW] 只在非图像生成模式下注入 Antigravity 身份 (原始简化版)
-        let antigravity_identity = "You are Antigravity, a powerful agentic AI coding assistant designed by the Google Deepmind team working on Advanced Agentic Coding.\n\
-        You are pair programming with a USER to solve their coding task. The task may require creating a new codebase, modifying or debugging an existing codebase, or simply answering a question.\n\
-        **Absolute paths only**\n\
-        **Proactiveness**";
+        // [NEW] 只在非图像生成模式下注入 Antigravity 身份 (可配置)
+        let antigravity_identity = crate::proxy::config::get_antigravity_identity_content();
 
         // [HYBRID] 检查是否已有 systemInstruction
         if let Some(system_instruction) = inner_request.get_mut("systemInstruction") {
@@ -360,9 +357,13 @@ pub fn wrap_request(
                         .map(|s| s.contains("You are Antigravity"))
                         .unwrap_or(false);
 
+                    let mut inserted_identity = false;
                     if !has_antigravity {
-                        // 在前面插入 Antigravity 身份
-                        parts_array.insert(0, json!({"text": antigravity_identity}));
+                        if let Some(identity) = antigravity_identity.as_ref() {
+                            // 在前面插入 Antigravity 身份
+                            parts_array.insert(0, json!({"text": identity}));
+                            inserted_identity = true;
+                        }
                     }
 
                     // [NEW] 注入全局系统提示词 (紧跟 Antigravity 身份之后，用户指令之前)
@@ -371,7 +372,11 @@ pub fn wrap_request(
                         && !global_prompt_config.content.trim().is_empty()
                     {
                         // 插入位置：Antigravity 身份之后 (index 1)
-                        let insert_pos = if has_antigravity { 1 } else { 1 };
+                        let insert_pos = if has_antigravity || inserted_identity {
+                            1
+                        } else {
+                            0
+                        };
                         if insert_pos <= parts_array.len() {
                             parts_array
                                 .insert(insert_pos, json!({"text": global_prompt_config.content}));
@@ -383,16 +388,21 @@ pub fn wrap_request(
             }
         } else {
             // 没有 systemInstruction,创建一个新的
-            let mut parts = vec![json!({"text": antigravity_identity})];
+            let mut parts = Vec::new();
+            if let Some(identity) = antigravity_identity.as_ref() {
+                parts.push(json!({"text": identity}));
+            }
             // [NEW] 注入全局系统提示词
             let global_prompt_config = crate::proxy::config::get_global_system_prompt();
             if global_prompt_config.enabled && !global_prompt_config.content.trim().is_empty() {
                 parts.push(json!({"text": global_prompt_config.content}));
             }
-            inner_request["systemInstruction"] = json!({
-                "role": "user",
-                "parts": parts
-            });
+            if !parts.is_empty() {
+                inner_request["systemInstruction"] = json!({
+                    "role": "user",
+                    "parts": parts
+                });
+            }
         }
     }
 

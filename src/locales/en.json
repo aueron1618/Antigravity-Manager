@@ -456,6 +456,12 @@
             "high_value_warning": "Current value exceeds 24576. Some models (Flash, -thinking) may not support this and requests may fail.",
             "tokens": "tokens"
         },
+        "antigravity_identity": {
+            "title": "Antigravity Identity",
+            "hint": "Injected into systemInstruction for OpenAI, Gemini, and Claude routes",
+            "placeholder": "You are Antigravity, a powerful agentic AI coding assistant designed by the Google Deepmind team working on Advanced Agentic Coding.\nYou are pair programming with a USER to solve their coding task. The task may require creating a new codebase, modifying or debugging an existing codebase, or simply answering a question.\n**Absolute paths only**\n**Proactiveness**",
+            "char_count": "{{count}} chars"
+        },
         "branding": {
             "title": "Antigravity Tools",
             "subtitle": "Professional Account Management"
@@ -916,6 +922,7 @@
             "quick_filters": "Quick Filters:",
             "all": "All",
             "error": "Error",
+            "refresh_window": "Token Refresh Window",
             "chat": "Chat",
             "gemini": "Gemini",
             "claude": "Claude",
@@ -947,6 +954,8 @@
             "mapped_model": "Mapped Model",
             "protocol": "Protocol",
             "account_used": "Account Used",
+            "request_url": "Request URL",
+            "system_instruction": "System Instruction",
             "id": "Request ID",
             "payload_empty": "No data"
         },

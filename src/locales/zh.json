@@ -563,6 +563,12 @@
             "char_count": "{{count}} 字符",
             "long_prompt_warning": "提示词较长（超过 2000 字符），可能会占用较多的上下文窗口空间。"
         },
+        "antigravity_identity": {
+            "title": "Antigravity 身份指令",
+            "hint": "注入到 OpenAI/Gemini/Claude 路由的 systemInstruction",
+            "placeholder": "You are Antigravity, a powerful agentic AI coding assistant designed by the Google Deepmind team working on Advanced Agentic Coding.\nYou are pair programming with a USER to solve their coding task. The task may require creating a new codebase, modifying or debugging an existing codebase, or simply answering a question.\n**Absolute paths only**\n**Proactiveness**",
+            "char_count": "{{count}} 字符"
+        },
         "claude_thinking_mapping": {
             "title": "Claude Thinking 模型映射",
             "hint": "将 -thinking 后缀模型映射为基础模型 ID。",
@@ -1112,6 +1118,7 @@
             "quick_filters": "快速过滤:",
             "all": "全部",
             "error": "仅错误",
+            "refresh_window": "Token 刷新窗口",
             "chat": "聊天",
             "gemini": "Gemini",
             "claude": "Claude",
@@ -1143,6 +1150,8 @@
             "mapped_model": "映射模型",
             "protocol": "请求协议",
             "account_used": "使用账号",
+            "request_url": "请求 URL",
+            "system_instruction": "系统指令 (System Instruction)",
             "id": "请求 ID",
             "payload_empty": "无数据"
         },

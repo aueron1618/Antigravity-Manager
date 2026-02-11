@@ -655,11 +655,8 @@ pub fn transform_openai_request(
         }
     }
 
-    // [NEW] Antigravity 身份指令 (原始简化版)
-    let antigravity_identity = "You are Antigravity, a powerful agentic AI coding assistant designed by the Google Deepmind team working on Advanced Agentic Coding.\n\
-    You are pair programming with a USER to solve their coding task. The task may require creating a new codebase, modifying or debugging an existing codebase, or simply answering a question.\n\
-    **Absolute paths only**\n\
-    **Proactiveness**";
+    // [NEW] Antigravity 身份指令 (可配置)
+    let antigravity_identity = crate::proxy::config::get_antigravity_identity_content();
 
     // [HYBRID] 检查用户是否已提供 Antigravity 身份
     let user_has_antigravity = system_instructions
@@ -670,7 +667,9 @@ pub fn transform_openai_request(
 
     // 1. Antigravity 身份 (如果需要, 作为独立 Part 插入)
     if !user_has_antigravity {
-        parts.push(json!({"text": antigravity_identity}));
+        if let Some(identity) = antigravity_identity.as_ref() {
+            parts.push(json!({"text": identity}));
+        }
     }
 
     // 2. [NEW] 注入全局系统提示词 (紧跟 Antigravity 身份之后)

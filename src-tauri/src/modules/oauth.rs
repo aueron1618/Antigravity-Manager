@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use crate::proxy::monitor::ProxyRequestLog;
 
 // Google OAuth configuration
 const CLIENT_ID: &str = "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com";
@@ -32,6 +33,51 @@ fn resolve_userinfo_url() -> String {
         }
     }
     USERINFO_URL_DEFAULT.to_string()
+}
+
+fn record_token_refresh_log(
+    account_id: Option<&str>,
+    token_url: &str,
+    status: u16,
+    duration: u64,
+) {
+    let Ok(app_config) = crate::modules::config::load_app_config() else {
+        return;
+    };
+
+    if !app_config.proxy.enable_logging {
+        return;
+    }
+
+    let account_email = account_id.and_then(|id| {
+        crate::modules::account::load_account(id)
+            .ok()
+            .map(|account| account.email)
+    });
+
+    let log = ProxyRequestLog {
+        id: uuid::Uuid::new_v4().to_string(),
+        timestamp: chrono::Utc::now().timestamp_millis(),
+        method: "TOKEN_REFRESH".to_string(),
+        url: token_url.to_string(),
+        status,
+        duration,
+        model: None,
+        mapped_model: None,
+        account_email,
+        client_ip: None,
+        error: None,
+        request_body: None,
+        response_body: None,
+        input_tokens: None,
+        output_tokens: None,
+        protocol: Some("oauth".to_string()),
+        username: None,
+    };
+
+    if let Err(e) = crate::modules::proxy_db::save_log(&log) {
+        tracing::debug!("Failed to save token refresh log: {}", e);
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -191,8 +237,9 @@ pub async fn refresh_access_token(
     }
 
     let token_url = resolve_oauth_token_url();
+    let request_start = std::time::Instant::now();
     let response = client
-        .post(token_url)
+        .post(token_url.clone())
         .form(&params)
         .send()
         .await
@@ -207,7 +254,10 @@ pub async fn refresh_access_token(
             }
         })?;
 
-    if response.status().is_success() {
+    let status = response.status();
+    let duration = request_start.elapsed().as_millis() as u64;
+
+    if status.is_success() {
         let token_data = response
             .json::<TokenResponse>()
             .await
@@ -217,6 +267,7 @@ pub async fn refresh_access_token(
             "Token refreshed successfully! Expires in: {} seconds",
             token_data.expires_in
         ));
+        record_token_refresh_log(account_id, &token_url, status.as_u16(), duration);
         Ok(token_data)
     } else {
         let error_text = response.text().await.unwrap_or_default();

@@ -369,6 +369,8 @@ pub fn run() {
             commands::proxy::export_proxy_logs_json,
             commands::proxy::get_proxy_logs_count_filtered,
             commands::proxy::get_proxy_logs_filtered,
+            commands::proxy::get_proxy_logs_count_between_refreshes,
+            commands::proxy::get_proxy_logs_between_refreshes,
             commands::proxy::set_proxy_monitor_enabled,
             commands::proxy::clear_proxy_logs,
             commands::proxy::generate_api_key,
