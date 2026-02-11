@@ -640,31 +640,11 @@ pub async fn handle_generate(
 pub async fn handle_list_models(
     State(state): State<AppState>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    use crate::proxy::common::model_mapping::get_all_dynamic_models;
-
-    // 获取所有动态模型列表（与 /v1/models 一致）
-    let model_ids = get_all_dynamic_models(&state.custom_mapping).await;
-
-    // 转换为 Gemini API 格式
-    let models: Vec<_> = model_ids
-        .into_iter()
-        .map(|id| {
-            json!({
-                "name": format!("models/{}", id),
-                "version": "001",
-                "displayName": id.clone(),
-                "description": "",
-                "inputTokenLimit": 128000,
-                "outputTokenLimit": 8192,
-                "supportedGenerationMethods": ["generateContent", "countTokens"],
-                "temperature": 1.0,
-                "topP": 0.95,
-                "topK": 64
-            })
-        })
-        .collect();
-
-    Ok(Json(json!({ "models": models })))
+    Ok(
+        crate::proxy::handlers::openai::handle_list_models(State(state))
+            .await
+            .into_response(),
+    )
 }
 
 pub async fn handle_get_model(Path(model_name): Path<String>) -> impl IntoResponse {

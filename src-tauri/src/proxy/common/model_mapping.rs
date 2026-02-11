@@ -9,43 +9,12 @@ static CLAUDE_TO_GEMINI: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|
     m.insert("claude-sonnet-4-5", "claude-sonnet-4-5");
     m.insert("claude-sonnet-4-5-thinking", "claude-sonnet-4-5-thinking");
 
-    // 别名映射
-    m.insert("claude-sonnet-4-5-20250929", "claude-sonnet-4-5-thinking");
-    m.insert("claude-3-5-sonnet-20241022", "claude-sonnet-4-5");
-    m.insert("claude-3-5-sonnet-20240620", "claude-sonnet-4-5");
     // [Redirect] Opus 4.5 -> Opus 4.6 (Issue #1743)
-    m.insert("claude-opus-4", "claude-opus-4-6-thinking");
     m.insert("claude-opus-4-5-thinking", "claude-opus-4-6-thinking");
-    m.insert("claude-opus-4-5-20251101", "claude-opus-4-6-thinking");
 
     // Claude Opus 4.6
     m.insert("claude-opus-4-6-thinking", "claude-opus-4-6-thinking");
     m.insert("claude-opus-4-6", "claude-opus-4-6-thinking");
-    m.insert("claude-opus-4-6-20260201", "claude-opus-4-6-thinking");
-
-    m.insert("claude-haiku-4", "claude-sonnet-4-5");
-    m.insert("claude-3-haiku-20240307", "claude-sonnet-4-5");
-    m.insert("claude-haiku-4-5-20251001", "claude-sonnet-4-5");
-    // OpenAI 协议映射表
-    m.insert("gpt-4", "gemini-2.5-flash");
-    m.insert("gpt-4-turbo", "gemini-2.5-flash");
-    m.insert("gpt-4-turbo-preview", "gemini-2.5-flash");
-    m.insert("gpt-4-0125-preview", "gemini-2.5-flash");
-    m.insert("gpt-4-1106-preview", "gemini-2.5-flash");
-    m.insert("gpt-4-0613", "gemini-2.5-flash");
-
-    m.insert("gpt-4o", "gemini-2.5-flash");
-    m.insert("gpt-4o-2024-05-13", "gemini-2.5-flash");
-    m.insert("gpt-4o-2024-08-06", "gemini-2.5-flash");
-
-    m.insert("gpt-4o-mini", "gemini-2.5-flash");
-    m.insert("gpt-4o-mini-2024-07-18", "gemini-2.5-flash");
-
-    m.insert("gpt-3.5-turbo", "gemini-2.5-flash");
-    m.insert("gpt-3.5-turbo-16k", "gemini-2.5-flash");
-    m.insert("gpt-3.5-turbo-0125", "gemini-2.5-flash");
-    m.insert("gpt-3.5-turbo-1106", "gemini-2.5-flash");
-    m.insert("gpt-3.5-turbo-0613", "gemini-2.5-flash");
 
     // Gemini 协议映射表
     m.insert("gemini-2.5-flash-lite", "gemini-2.5-flash");
@@ -298,19 +267,11 @@ pub fn normalize_to_standard_id(model_name: &str) -> Option<String> {
         "gemini-3-pro-high" | "gemini-3-pro-low" => Some("gemini-3-pro-high".to_string()),
 
         // 4. Claude 4.6 系列 (严格名单匹配)
-<<<<<<< HEAD
-        "claude-opus-4-6-thinking" |
-        "claude-opus-4-5-thinking" |
-        "claude-sonnet-4-5-thinking" |
-        "claude-sonnet-4-5" |
-        "claude" => Some("claude".to_string()),
-=======
         "claude-opus-4-6-thinking"
         | "claude-opus-4-5-thinking"
         | "claude-sonnet-4-5-thinking"
         | "claude-sonnet-4-5"
         | "claude" => Some("claude".to_string()),
->>>>>>> 131364f (Port proxy features and add endpoint overrides)
 
         _ => None,
     }
@@ -335,25 +296,14 @@ mod tests {
             map_claude_model_to_gemini("gemini-2.5-flash-mini-test"),
             "gemini-2.5-flash-mini-test"
         );
-<<<<<<< HEAD
-        assert_eq!(
-            map_claude_model_to_gemini("unknown-model"),
-            "unknown-model"
-        );
-
-        // Test Normalization (Opus 4.6 now merged into "claude" group)
-        assert_eq!(normalize_to_standard_id("claude-opus-4-6-thinking"), Some("claude".to_string()));
-        assert_eq!(
-=======
         assert_eq!(map_claude_model_to_gemini("unknown-model"), "unknown-model");
 
-        // Test Normalization Exception (Opus 4.6 now merged)
+        // Test Normalization (Opus 4.6 now merged)
         assert_eq!(
             normalize_to_standard_id("claude-opus-4-6-thinking"),
             Some("claude".to_string())
         );
         assert_eq!(
->>>>>>> 131364f (Port proxy features and add endpoint overrides)
             normalize_to_standard_id("claude-sonnet-4-5"),
             Some("claude".to_string())
         );
