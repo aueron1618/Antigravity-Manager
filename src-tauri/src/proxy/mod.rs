@@ -38,7 +38,7 @@ pub use config::update_endpoint_proxy_config;
 pub use config::ProxyAuthMode;
 pub use config::ProxyConfig;
 pub use config::ProxyPoolConfig;
-pub use config::StreamHandlingConfig;
+
 pub use config::ZaiConfig;
 pub use config::ZaiDispatchMode;
 pub use security::ProxySecurityConfig;

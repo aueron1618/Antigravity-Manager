@@ -195,7 +195,7 @@ impl UpstreamClient {
     fn resolve_base_urls() -> Vec<String> {
         let cfg = crate::proxy::config::get_endpoint_proxy_config();
         if cfg.enabled {
-            let mut urls: Vec<String> = cfg
+            let urls: Vec<String> = cfg
                 .base_urls
                 .iter()
                 .map(|u| u.trim())

@@ -47,7 +47,7 @@ fn find_exclude_ranges_by_tags(text: &str, tags: &[String]) -> Vec<(usize, usize
 
     ranges.sort_by_key(|(start, _)| *start);
 
-    let mut merged = Vec::new();
+    let mut merged: Vec<(usize, usize)> = Vec::new();
     for range in ranges {
         if let Some(last) = merged.last_mut() {
             if range.0 <= last.1 {
